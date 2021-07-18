@@ -30,7 +30,7 @@ def predict():
             df[word][0]+=1
             
     pred = classifier.predict(df)
-    return jsonify(pred[0])
+    return jsonify({"file_type": pred[0]})
 
 @app.route('/predict_stats', methods=["GET"])
 def predict_stats():
@@ -60,8 +60,8 @@ def predict_stats():
     tracemalloc.stop()
     return jsonify(
         {
-            "prediction_speed": 6/time_required,
-            "memory": memory[1]/(6*1024),
+            "predictions_per_sec": 6/time_required,
+            "memory": f"{memory[1]/(6*1024)} kb",
             "unit": "kb",
             "count": 6,
         }

@@ -62,7 +62,6 @@ def main():
     for (dirpath, dirnames, filenames) in walk('./'):
         f.extend(dirnames)
         break
-    f.remove(".ipynb_checkpoints")
     print("Found folders:", *f)
     # Finding all files in folders, and making a dictinary {"filetype": list of files}
     files = {}
