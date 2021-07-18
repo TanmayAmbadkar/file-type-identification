@@ -1,0 +1,30 @@
+#!groovy
+
+properties([disableConcurrentBuilds()])
+
+
+pipeline {
+    agent any
+
+    options{
+    timestamps()
+     }
+
+    stages {
+
+        stage('Compile') {
+            steps {
+                echo "Compiling..."
+                bat "c:/data/sbt/bin/sbt compile"
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo "Testing..."
+                bat "c:/data/sbt/bin/sbt test"
+            }
+        }
+
+    }
+}

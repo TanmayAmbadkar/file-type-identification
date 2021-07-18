@@ -1,0 +1,43 @@
+pipeline {
+    agent any
+
+    // 定义构建参数
+    parameters {
+        string(name: 'ENV_FILE', defaultValue: 'base-env.groovy', description: '环境变量存放文件')
+    }
+
+    environment {
+        CITY = "CD"
+    }
+    stages {
+        // 读取workspace下base-env.groovy环境配置文件
+        stage("init env") {
+            steps {
+                script {
+                    println "base-env.groovy"
+                    load "${params.ENV_FILE}"
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                echo "读取文件环境变量 ${env.JDK_V}"
+                sh '''
+                    java -jar /home/jenkins/code_scanner/scanner.jar ${WORKSPACE}
+                    chmod +x gradlew
+                    ./gradlew clean assemble build #sonarqube
+                    '''
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'this is a deploy step'
+            }
+        }
+    }
+    post {
+        always {
+            echo "job is over"
+        }
+    }
+}

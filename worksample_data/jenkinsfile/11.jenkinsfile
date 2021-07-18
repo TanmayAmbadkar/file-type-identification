@@ -1,0 +1,156 @@
+/*
+ *  SEMS Pipeline Framework Infrastructure (SPiFI)
+ *
+ * Copyright 2020 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+ * Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains
+ * certain rights in this software.
+ *
+ * LICENSE (3-Clause BSD)
+ * ----------------------
+ * Copyright 2020 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+ * Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains
+ * certain rights in this software.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contact
+ * -------
+ * William C. McLendon III (wcmclen@sandia.gov)
+ */
+
+/**
+ * Load ANY SPiFI library
+ *
+ * This is a more complicated example based on Example B-01 which
+ * demonstrates how to load SPiFI from ANY git repository using
+ * dynamic library loading.
+ *
+ * This pipeline demonstrates a parameterized way to load any branch
+ * of SPiFI from any repository (such as your fork!).
+ *
+ */
+
+
+// Set up Jenkins pipeline properties.
+properties([
+    parameters([
+        string(name: "NODE_RESTRICTION",
+               defaultValue: "RHEL7 || OS_RHEL7 || master",
+               description: "Set the node-restriction expression here. (i.e., 'OS_RHEL7 || OS_RHEL8')",
+               trim: true),
+        string(name: "SPiFI_URL",
+               defaultValue: 'git@gitlab-ex.sandia.gov:SEMS/sems-pipeline-framework-infrastructure.git',
+               description: 'Repository URL for SPiFI',
+               trim: true),
+        string(name: "SPiFI_BRANCH",
+               defaultValue: "master",
+               description:  "Default branch of SPiFI (i.e., version) to load",
+               trim: true),
+        credentials(name: "SPiFI_GIT_CREDENTIAL",
+                    credentialType: 'com.cloudbees.plugins.credentials.common.StandardCredentials',
+                    defaultValue: '',
+                    description: 'If needed, provide the Git credential required to access SPiFI_URL here.',
+                    required: true)
+    ])
+])
+
+
+// Exit UNSTABLE if this is the first run (i.e, parameters are missing).
+Boolean is_first_run = false
+if(false == params.containsKey("NODE_RESTRICTION"))     is_first_run = true
+if(false == params.containsKey("SPiFI_URL"))            is_first_run = true
+if(false == params.containsKey("SPiFI_BRANCH"))         is_first_run = true
+if(false == params.containsKey("SPiFI_GIT_CREDENTIAL")) is_first_run = true
+if(is_first_run)
+{
+    currentBuild.status = "UNSTABLE"
+    return
+}
+
+
+// Check parameter values and fail early if there's a problem or bad value.
+assert "" != params.SPiFI_URL, "ERROR: No URL specified for the SPiFI Library"
+
+
+///////////////////////////////
+// SPiFI Library Load Begin
+//
+String spifi_identifier = "MySPiFI"
+if("" != params.SPiFI_BRANCH)
+{
+    spifi_identifier += "@" + params.SPiFI_BRANCH
+}
+def libspifi = null
+try
+{
+    libspifi = library( identifier: spifi_identifier,
+                        retriever: modernSCM([ $class: 'GitSCMSource',
+                                               credentialsId: params.SPiFI_GIT_CREDENTIAL,
+                                               remote: params.SPiFI_URL,
+                                               traits: [ [ $class: 'jenkins.plugins.git.traits.BranchDiscoveryTrait'],
+                                                         [ $class: 'CloneOptionTrait',
+                                                           extension: [noTags: false, reference: '', shallow: false, timeout: 5]
+                                                         ]
+                                                       ]
+                                            ])
+                      ).gov.sandia.sems.spifi
+}
+catch(ex)
+{
+    println "An ERROR occurred attempting to load SPiFI\n" +
+            "url       : ${params.SPiFI_URL}\n" +
+            "branch    : ${params.SPiFI_BRANCH}\n" +
+            "credential: ${params.SPiFI_GIT_CREDENTIAL}"
+    throw ex
+}
+//
+// SPiFI Library Load Complete
+///////////////////////////////
+
+
+
+// Enable Timestamps (requires a plugin)
+timestamps()
+{
+
+
+// Start the pipeline here.
+node(params.NODE_RESTRICTION)
+{
+    // Clean the workspace (requires a separate plugin)
+    cleanWs()
+
+    // Print out the library version of SPiFI
+    println "Loaded SPiFI version: ${libspifi.Info.version()}\n"  +
+            "- Version major: ${libspifi.Info.version_major()}\n" +
+            "- Version minor: ${libspifi.Info.version_minor()}\n" +
+            "- Version patch: ${libspifi.Info.version_patch()}"
+
+}  // end node
+
+
+
+}  // end timestamps

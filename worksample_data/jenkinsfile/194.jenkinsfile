@@ -1,0 +1,20 @@
+pipeline {
+    agent any
+    environment{
+        variable1="stage1"
+        variable2="stage2"
+    }
+
+    stages {
+        stage('stage1') {
+            steps {
+                echo "${variable1}"
+            }
+        }
+        stage('stage2') {
+        	steps{
+                echo "${variable2}"
+        	}
+        }
+    }
+}

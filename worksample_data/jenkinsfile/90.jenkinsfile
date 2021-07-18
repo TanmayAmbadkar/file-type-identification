@@ -1,0 +1,28 @@
+pipeline{
+    agent {
+        label "docker-agent"
+    }
+    stages {
+        stage("Git clone"){
+            steps{
+                git url:"https://github.com/Zsomx/express_example.git", branch:"szte"
+            }
+        }
+        stage("Docker build"){
+            steps{
+                    sh "docker build -t ${params.imageName} ."
+            }
+        }
+        stage("Docker push"){
+         steps{
+            sh "docker tag ${params.imageName} 192.168.2.2:5000/${params.imageName}"   
+            sh "docker push 192.168.2.2:5000/${params.imageName}"
+         }
+        }
+        stage("Docker clean up"){
+         steps{
+            sh "docker rmi -f ${params.imageName} 192.168.2.2:5000/${params.imageName}"   
+         }
+        }
+    }
+}

@@ -1,0 +1,144 @@
+pipeline
+{
+    options
+    {
+        buildDiscarder(logRotator(numToKeepStr: '4')) //Sadece bu sayıdaki build log'ları tutulacaktır(arayüzdeki build history kısmı).
+    }
+    agent any //herhangibir agent'ta derleyebilirsin
+    environment //environment variable tanımlanıyor
+    {
+        VERSION = 'latest'
+        PROJECT = 'pim_api'
+        IMAGE = 'image'
+        REGION = 'eu-west-1'
+        ENVIRONMENT_NAME = 'static-web-elbtype-app'
+        APP_NAME = 'StaticWeb'
+        AWS_ACCOUNT_ID = '842810336739'
+        EB_BUCKET = "elasticbeanstalk-eu-west-1-842810336739"
+        ECR_REPO_NAME = "talhadeneme"
+        //Slack Colors
+        SLACK_COLOR_DANGER  = '#E01563'
+        SLACK_COLOR_INFO    = '#6ECADC'
+        SLACK_COLOR_WARNING = '#FFC300'
+        SLACK_COLOR_GOOD    = '#3EB991'
+        
+    }
+    stages
+    {
+        stage('Build preparations')
+        {
+            steps
+            {
+                script 
+                {
+                    // calculate GIT lastest commit short-hash
+                    gitCommitHash = sh(returnStdout: true, script: 'git rev-parse HEAD').trim() // returnStdout shell komutunun çıktısını değişkene atama yapıyor. trim() metodu içine yazılan karakterleri atar burda baştaki ve sondaki boşlukları atmak için kullanılmış. "git rev-parse HEAD" komutu commit'in SHA1 kodunu döndürür 
+                    shortCommitHash = gitCommitHash.take(7) //take() metodu içine yazılan sayı kadar string'ten karakter alır.
+                    // calculate a sample version tag
+                    VERSION = shortCommitHash//versiyon olarak shortCommitHash atanıyor
+                    // set the build display name
+                    currentBuild.displayName = "#${BUILD_ID}-${VERSION}"//çalışan build'in(currentBuild) displayName'ine BUILD_ID-VERSION ataması yapıyor
+                    IMAGE = "${PROJECT}-${VERSION}"
+                }
+            }
+        }
+        stage('Docker build')
+        {
+            steps
+            {
+                script
+                {
+                    // Build the docker image using a Dockerfile
+                    //docker.build("$IMAGE","dockerfile/Path")
+                    docker.build("${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE}")
+                }
+            }
+        }
+        stage('Docker push')
+        {
+            steps
+            {
+                script
+                {
+                    // login to ECR - for now it seems that that the ECR Jenkins plugin is not performing the login as expected. I hope it will in the future.
+                    //sh("eval \$(aws ecr get-login --no-include-email | sed 's|https://||')")
+                    // Push the Docker image to ECR
+                    //docker.withRegistry(ECRURL, ECRCRED)
+                    //docker.withRegistery(ECRURL, ECRCRED)
+                    //{
+                        docker.image("${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE}").push()
+                    //}
+                }
+            }
+        }
+
+        stage('upload S3')
+        {
+            steps
+            {
+                script
+                {
+                    echo "====++++create Dockerrun.aws.json++++===="
+                    //Dockerrun.aws.json'a region set ediliyor
+                    sh """sed -i "s/<REGION>/${REGION}/" Dockerrun.aws.json"""
+                    //Dockerrun.aws.json'a repository name set ediliyor
+                    sh """sed -i "s/<REPOSITORY_NAME>/${ECR_REPO_NAME}/" Dockerrun.aws.json"""
+                    // Dockerrun.aws.json'a AWS_ACCOUNT_ID set adiliyor
+                    sh """sed -i "s/<AWS_ACCOUNT_ID>/${AWS_ACCOUNT_ID}/" Dockerrun.aws.json"""
+                    // Dockerrun.aws.json'a projectname set ediliyor
+                    sh """sed -i "s/<PROJECTNAME>/${PROJECT}/" Dockerrun.aws.json"""
+                    //Dockerrun.aws.json'a tag set ediliyor
+                    sh """sed -i "s/<TAG>/${VERSION}/" Dockerrun.aws.json"""
+                    //Dockerrun.aws.json dosyası zipleniyor
+                    sh "zip ${IMAGE}.zip Dockerrun.aws.json"
+                    //oluşturulan zip dosyası s3'e upload ediliyor
+                    sh """aws s3 cp ${IMAGE}.zip s3://${EB_BUCKET}/${PROJECT}/${IMAGE}.zip"""
+                }
+            }
+        }
+        stage('Deploy')
+        {
+            steps
+            {
+                script
+                {
+                    // Create a new application version with the zipped up Dockerrun file
+                    sh """aws elasticbeanstalk create-application-version \
+                          --region ${REGION} \
+                          --application-name ${APP_NAME} \
+                          --description ${IMAGE} \
+                          --version-label ${VERSION} \
+                          --source-bundle S3Bucket="${EB_BUCKET}",S3Key="${PROJECT}/${IMAGE}.zip" \
+                          --no-auto-create-application"""   
+                    echo "====++++yeni app versiyon ile environment güncelleme++++===="
+                    // Update the environment to use the new application version
+                    sh """aws elasticbeanstalk update-environment \
+                          --region ${REGION} \
+                          --environment-name ${ENVIRONMENT_NAME} \
+                          --version-label ${VERSION}"""
+                }
+            }
+            post
+            {
+                always
+                {          
+                    script
+                    {
+                        // make sure that the Docker image is removed
+                        sh "docker rmi ${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE} | true"
+                        sh "rm -r *"
+                    }
+                }
+                success {
+                echo 'This will run only if successful'
+                echo 'Pushing EBS'
+                echo "====++++something++++===="
+                slackSend (color: "${env.SLACK_COLOR_GOOD}",
+                    channel: "#general",
+                    message: "*SUCCESS:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} by ${env.USER_ID}\n More info at: ${env.BUILD_URL}")
+
+                }
+            }
+        }
+    }
+}

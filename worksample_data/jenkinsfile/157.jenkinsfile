@@ -1,0 +1,15 @@
+pipeline{
+    agent any
+    options { 
+        timestamps ()
+        disableConcurrentBuilds()
+    }
+    stages{
+        stage("First"){
+            steps{
+                echo "======== Hello World ========"
+                sleep 10
+            }
+        }
+    }
+}

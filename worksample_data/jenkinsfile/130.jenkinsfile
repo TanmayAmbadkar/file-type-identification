@@ -1,0 +1,15 @@
+pipeline {
+    agent any
+    stages {
+        stage ('take') {
+            steps {
+                git 'https://github.com/konef/hellobash'
+            }
+        }
+        stage ('hello') {
+            steps {
+                sh label: '', script: 'bash hello.sh'
+            }
+        }
+    }
+}

@@ -1,0 +1,21 @@
+stage('Build') {
+
+	dir("../source") {
+		
+		sh "mvn -v"
+		sh "mvn clean package -f pom.xml"
+		
+		sh "mkdir /tmp/app"
+		
+		def jarFile = sh(returnStdout: true, script: 'find target -maxdepth 1 -regextype posix-extended -regex ".+\\.(jar|war)\$" | head -n 1').trim()
+		sh "cp ${jarFile} /tmp/app/app.jar"
+		
+		withCredentials([file(credentialsId:'Dockerfile', variable:'Dockerfile')]) {
+			sh "cp ${Dockerfile} /tmp/app/Dockerfile"
+		}
+	}
+}
+stage('Deploy') {
+	sh "oc new-build --name hello-world-3 --binary -n fuse-on-ocp-c8b3 || true"
+	sh "oc start-build hello-world-3 --from-dir=/tmp/app/ -n fuse-on-ocp-c8b3 --follow --wait"
+}

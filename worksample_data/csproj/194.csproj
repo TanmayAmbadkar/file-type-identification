@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <Description>SpanJson ASP.NET Core Formatter is the ASP.NET Core formatter package for SpanJson for ASP.NET Core 3.0+</Description>
+    <PackageTags>JSON;aspnetcore</PackageTags>
+    <SignAssembly>true</SignAssembly>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <AssemblyOriginatorKeyFile>../SpanJson.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile>bin\Debug\netcoreapp3.0\SpanJson.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\netcoreapp3.0\SpanJson.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="SpanJson" Version="$(Version)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpanJson\SpanJson.csproj" />
+  </ItemGroup>
+
+</Project>

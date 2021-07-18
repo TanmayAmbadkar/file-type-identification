@@ -1,0 +1,11 @@
+node {
+    stage("Build") {
+        node("master") {
+            def mavenImage = docker.withRegistry('https://localhost:5000','local-registry') {  // (DNS, credentialsID)
+            docker.image("maven:3.6.3-openjdk-8-slim").inside {
+                sh "mvn -v"
+                }
+            }
+        }
+    }
+}

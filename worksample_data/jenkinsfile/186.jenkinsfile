@@ -1,0 +1,59 @@
+#!groovy
+
+@Library('jenkinslib@master') _
+
+def build = new org.devops.build()
+def deploy = new org.devops.ansible()
+
+String buildType = "${env.buildType}"
+String buildShell = "${env.buildShell}"
+String deployHosts = "${env.deployHosts}"
+String deployHost = "${env.deployHost}"
+
+pipeline{
+    agent{ node { label "master"}}
+
+    stages{
+        stage("构建"){
+            steps{
+                script{
+                    build.Build(buildType,buildShell)
+                    
+                    deploy.SaltDeploy("${deployHosts}", "test.ping")
+                    deploy.AnsibleDeploy("${deployHost}","-m ping")
+                }
+            }
+        }
+
+        /*stage("ANT构建"){
+            steps{
+                script{
+                    try{
+                        antHome =  tool "ANT"
+                        sh "${antHome}/bin/ant ${buildShell}"
+                    } catch(e){
+                        println(e)
+                    }
+                }
+            }
+        }
+
+        stage("Gradle构建"){
+            steps{
+                script{
+                    gradleHome = tool "GRADLE"
+                    sh "${gradleHome}/bin/gradle ${buildShell}"
+                }
+            }
+        }
+
+        stage("NPM构建"){
+            steps{
+                script{
+                    npmHome = tool "NPM"
+                    sh "export NODE_HOME=${npmHome} && export PATH=\$NODE_HOME/bin:\$PATH && ${npmHome}/bin/npm ${buildShell}"
+                }
+            }
+        }*/
+    }
+}

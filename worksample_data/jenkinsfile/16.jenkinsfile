@@ -1,0 +1,25 @@
+    pipeline{
+    agent {
+            label "centos"
+        }
+    options { 
+        timestamps () 
+        }
+    environment {
+        DEPLOY_TO = "DEV"
+        version = "1.0"
+    }
+    stages{
+        stage("A") {
+            when {
+                anyOf {
+                    environment name: "DEPLOY_TO", value: "PROD"
+                    environment name: "version", value: "1.0"
+                }
+            }
+            steps {
+                echo "Deploing to ${DEPLOY_TO} version ${version}"
+            }
+        }
+    }
+}

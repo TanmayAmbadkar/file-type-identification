@@ -1,0 +1,255 @@
+#!/usr/bin/groovy
+/*
+ *  SEMS Pipeline Framework Infrastructure (SPiFI)
+ *
+ * Copyright 2020 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+ * Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains
+ * certain rights in this software.
+ *
+ * LICENSE (3-Clause BSD)
+ * ----------------------
+ * Copyright 2020 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+ * Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains
+ * certain rights in this software.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contact
+ * -------
+ * William C. McLendon III (wcmclen@sandia.gov)
+ */
+
+/**
+ * Test spifi_stage + visitors
+ *
+ * Tests out gov.sandia.sems.spifi.experimental.Stages.spifi_stage
+ * generic stage prototype.
+ *
+ */
+
+// Load the SPiFI library
+def libspifi = library("SPiFI-DEV@master").gov.sandia.sems.spifi
+def spifi_stages = libspifi.experimental.Stages.new()
+
+String node_restriction = "RHEL7 || OS_RHEL7 || master"
+
+node(node_restriction)
+{
+    // Clean the workspace every time.
+    cleanWs()
+
+    // Define vars for meta
+    String stage_name = ""
+    Boolean simulate  = false
+    Boolean skip      = false
+
+    // Create arg maps to pass into stages
+    Map cbSimArgs      = [:]
+    Map cbSkippedArgs  = [:]
+    Map cbPreArgs      = [:]
+    Map cbPostArgs     = [:]
+    Map cbBodyPreArgs  = [:]
+    Map cbBodyPostArgs = [:]
+    Map cbSharedArgs   = [:]
+    Map logDebug       = [:]
+
+    // Create general callbacks for testing.
+    Closure cbSim = {
+        println "\u250C\n" +
+                "\u2502 Hello from test cbSim\n" +
+                "\u2514"
+    }
+    Closure cbSkipped = {
+        println "\u250C\n" +
+                "\u2502 Hello from test cbSkipped\n" +
+                "\u2514"
+    }
+    Closure cbSkippedWithArgs = { args=[:], wksp=[:] ->
+        println "\u250C\n" +
+                "\u2502 Hello from cbSkippedWithArgs\n" +
+                "\u2502 - args: ${args}\n" +
+                "\u2514"
+    }
+    Closure cbPre = {
+        println "\u250C\n" +
+                "\u2502 Hello from test cbPre\n" +
+                "\u2514"
+    }
+    Closure cbPost = {
+        println "\u250C\n" +
+                "\u2502 Hello from test cbPost\n" +
+                "\u2514"
+    }
+    Closure cbBodyPre = {
+        println "\u250C\n" +
+                "\u2502 Hello from test cbBodyPre\n" +
+                "\u2514"
+    }
+    Closure cbBodyPost = {
+        println "\u250C\n" +
+                "\u2502 Hello from test cbBodyPost\n" +
+                "\u2514"
+    }
+
+
+    // --------------------------------------------------------------
+    //                P I P E L I N E   S T A G E S
+    // --------------------------------------------------------------
+
+
+    // Kitchen Sink! Provide ALL callbacks (not skipped, not simulated)
+    stage_name   = "Kitchen Sink [FF]"
+    skip         = false
+    simulate     = false
+    logDebug     = [:]
+    cbSharedArgs = [:]
+    spifi_stages.spifi_stage(stageName: stage_name,
+                             simulate: simulate,
+                             skip: skip,
+                             callbackStagePre: cbPre,
+                             callbackStagePreArgs: cbPreArgs,
+                             callbackStageSkipped: cbSkippedWithArgs,
+                             callbackStageSkippedArgs: cbSkippedArgs,
+                             callbackStageBodyPre: cbBodyPre,
+                             callbackStageBodyPreArgs: cbBodyPreArgs,
+                             callbackStageBodyPost: cbBodyPost,
+                             callbackStageBodyPostArgs: cbBodyPostArgs,
+                             callbackStagePost: cbPost,
+                             callbackStagePostArgs: cbPostArgs,
+                             callbackStageSimulate: cbSim,
+                             callbackStageSimulateArgs: cbSimArgs,
+                             callbackSharedArgs: cbSharedArgs,
+                             logDebug: logDebug)
+    {
+        println "\u250C\n" +
+                "\u2502 Hello from ${stage_name} body!\n" +
+                "\u2502 Shared Args = ${cbSharedArgs}\n" +
+                "\u2514"
+    }
+    println "\u2502 cbSharedArgs: ${cbSharedArgs}\n" +
+            "\u2502 logDebug: ${logDebug}"
+
+
+    // Kitchen Sink! Provide ALL callbacks (skip, not simulated)
+    stage_name   = "Kitchen Sink [TF]"
+    skip         = true
+    simulate     = false
+    logDebug     = [:]
+    cbSharedArgs = [:]
+    spifi_stages.spifi_stage(stageName: stage_name,
+                             simulate: simulate,
+                             skip: skip,
+                             callbackStagePre: cbPre,
+                             callbackStagePreArgs: cbPreArgs,
+                             callbackStageSkipped: cbSkippedWithArgs,
+                             callbackStageSkippedArgs: cbSkippedArgs,
+                             callbackStageBodyPre: cbBodyPre,
+                             callbackStageBodyPreArgs: cbBodyPreArgs,
+                             callbackStageBodyPost: cbBodyPost,
+                             callbackStageBodyPostArgs: cbBodyPostArgs,
+                             callbackStagePost: cbPost,
+                             callbackStagePostArgs: cbPostArgs,
+                             callbackStageSimulate: cbSim,
+                             callbackStageSimulateArgs: cbSimArgs,
+                             callbackSharedArgs: cbSharedArgs,
+                             logDebug: logDebug)
+    {
+        println "\u250C\n" +
+                "\u2502 Hello from ${stage_name} body!\n" +
+                "\u2502 Shared Args = ${cbSharedArgs}\n" +
+                "\u2514"
+    }
+    println "\u2502 cbSharedArgs: ${cbSharedArgs}\n" +
+            "\u2502 logDebug: ${logDebug}"
+
+
+    // Kitchen Sink! Provide ALL callbacks (not skipped, simulated)
+    stage_name   = "Kitchen Sink [FT]"
+    skip         = false
+    simulate     = true
+    logDebug     = [:]
+    cbSharedArgs = [:]
+    spifi_stages.spifi_stage(stageName: stage_name,
+                             simulate: simulate,
+                             skip: skip,
+                             callbackStagePre: cbPre,
+                             callbackStagePreArgs: cbPreArgs,
+                             callbackStageSkipped: cbSkippedWithArgs,
+                             callbackStageSkippedArgs: cbSkippedArgs,
+                             callbackStageBodyPre: cbBodyPre,
+                             callbackStageBodyPreArgs: cbBodyPreArgs,
+                             callbackStageBodyPost: cbBodyPost,
+                             callbackStageBodyPostArgs: cbBodyPostArgs,
+                             callbackStagePost: cbPost,
+                             callbackStagePostArgs: cbPostArgs,
+                             callbackStageSimulate: cbSim,
+                             callbackStageSimulateArgs: cbSimArgs,
+                             callbackSharedArgs: cbSharedArgs,
+                             logDebug: logDebug)
+    {
+        println "\u250C\n" +
+                "\u2502 Hello from ${stage_name} body!\n" +
+                "\u2502 Shared Args = ${cbSharedArgs}\n" +
+                "\u2514"
+    }
+    println "\u2502 cbSharedArgs: ${cbSharedArgs}\n" +
+            "\u2502 logDebug: ${logDebug}"
+
+
+    // Kitchen Sink! Provide ALL callbacks (skipped, simulated)
+    stage_name   = "Kitchen Sink [TT]"
+    skip         = true
+    simulate     = true
+    logDebug     = [:]
+    cbSharedArgs = [:]
+    spifi_stages.spifi_stage(stageName: stage_name,
+                             simulate: simulate,
+                             skip: skip,
+                             callbackStagePre: cbPre,
+                             callbackStagePreArgs: cbPreArgs,
+                             callbackStageSkipped: cbSkippedWithArgs,
+                             callbackStageSkippedArgs: cbSkippedArgs,
+                             callbackStageBodyPre: cbBodyPre,
+                             callbackStageBodyPreArgs: cbBodyPreArgs,
+                             callbackStageBodyPost: cbBodyPost,
+                             callbackStageBodyPostArgs: cbBodyPostArgs,
+                             callbackStagePost: cbPost,
+                             callbackStagePostArgs: cbPostArgs,
+                             callbackStageSimulate: cbSim,
+                             callbackStageSimulateArgs: cbSimArgs,
+                             callbackSharedArgs: cbSharedArgs,
+                             logDebug: logDebug)
+    {
+        println "\u250C\n" +
+                "\u2502 Hello from ${stage_name} body!\n" +
+                "\u2502 Shared Args = ${cbSharedArgs}\n" +
+                "\u2514"
+    }
+    println "\u2502 cbSharedArgs: ${cbSharedArgs}\n" +
+            "\u2502 logDebug: ${logDebug}"
+
+}
+

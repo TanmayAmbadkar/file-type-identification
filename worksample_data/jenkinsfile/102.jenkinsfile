@@ -1,0 +1,69 @@
+@Library('pipeline-library-utils')_
+def return_val
+def myList = []
+
+pipeline {
+    agent any
+    parameters {
+        string(name: 'GIT_HUB_URL', defaultValue: 'https://github.com/perlinjenkins/pipeline-utils')
+        string(name: 'Branch', defaultValue: 'master')
+	    string(name: 'Commit_count', defaultValue: '5')
+    }
+
+    environment {
+        def mvnHome = tool name: 'maven3.6', type: 'maven'
+        def jdkHome = tool name: 'jdk1.8', type: 'jdk'
+    }
+
+    stages {
+
+		stage ('Checkout')	{
+			steps	{
+                script {
+                    Date start = new Date()
+                    def cloneURL = "${params.GIT_HUB_URL}.git"
+                    git url:	"${cloneURL}"
+                    Date stop = new Date()
+                    def name = getCurrentStageName()
+					def duration = stageDuration(start, stop)
+					myList <<'The step: ' + ' ' + name + ' ' + ' takes-> ' + ' ' + duration
+                }				
+			}
+		}
+		
+		stage ('Build')	{
+			steps	{
+                script{
+                    Date start = new Date()
+                    bat	"%mvnHome%/bin/mvn -Dmaven.compiler.fork=true -Dmaven.compiler.executable=\"%jdkHome%/bin/javac\" compile"
+                    Date stop = new Date()
+                    def name = getCurrentStageName()
+				    def duration = stageDuration(start, stop)
+				    myList <<'The step: ' + ' ' + name + ' ' + ' takes-> ' + ' ' + duration
+                }				
+			}
+		}
+        
+        stage ('GetCommits') {
+		    steps{
+		        script{
+		            Date start = new Date()
+		            return_val = bat(script: '@echo off\n python C:\\alex\\get_commit_list.py --branch %Branch% --url %GIT_HUB_URL% --commit %Commit_count%', returnStdout: true)
+		            echo return_val
+		            Date stop = new Date()
+					def name = getCurrentStageName()
+					def duration = stageDuration(start, stop)
+					myList <<'The step: ' + ' ' + name + ' ' + ' takes-> ' + ' ' + duration
+		        }    
+		    }   
+		}  
+	}
+
+    post {
+        success {
+            mail to: 'alexander.perlin@hotmail.com', from: 'aperlin@gmail.com',
+                subject: "Build: ${env.JOB_NAME} - ${env.BUILD_NUMBER} - successed", 
+                body: "The last ${params.Commit_count} commits for branch: ${params.Branch}\n GitHub repo: ${params.GIT_HUB_URL}\n ${return_val}\n ${myList[0]}\n ${myList[1]}\n ${myList[2]}"
+        }
+    }
+}

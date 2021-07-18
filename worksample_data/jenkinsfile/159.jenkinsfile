@@ -1,0 +1,86 @@
+pipeline {
+    agent {
+        label "cekit"
+    }
+    
+    environment {
+        WORKING_DIR = "kogito-images"
+    }
+    
+    stages {
+        stage("Init"){
+            steps{
+                script {
+                    sh """
+                        docker login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+                    """
+
+                    currentBuild.displayName = "${REPOSITORY_BRANCH}"
+                }
+            }
+        }
+        stage("Checkout code"){
+            steps {
+                deleteDir()
+                sh "rm -rf ${WORKING_DIR} && mkdir -p ${WORKING_DIR}"
+                dir("${WORKING_DIR}") {
+                    git url: "${REPOSITORY_URL}", branch: "${REPOSITORY_BRANCH}"
+                    sh "ls -al"
+                }
+            }
+        }
+        
+        stage("Setup node") {
+            steps {
+                script {                    
+                    sh """
+                        export PATH=/home/hudson/cekit/bin:\$PATH
+                        cekit --version
+
+                        rm -rf ~/.cekit/cache/
+                    """
+                }
+            }
+        }
+        
+        stage("Build & Push images"){
+            steps {
+                dir("${WORKING_DIR}") {
+                    sh """
+                        export PATH=/home/hudson/cekit/bin:\$PATH
+
+                        sed -i "s|quay.io/kiegroup|${IMAGE_REGISTRY}/${IMAGE_GROUP}|g" *.yaml
+                        sed -i "s|quay.io/kiegroup|${IMAGE_REGISTRY}/${IMAGE_GROUP}|g" Makefile
+
+                        docker login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+                        make push
+                    """
+                }
+            }
+        }
+    }
+     post {
+        unstable {
+            script {
+                sendMail()
+            }
+        }
+        failure {
+            script {
+                sendMail()
+            }
+        }
+        changed {
+            script {
+                sendMail()
+            }
+        }
+        always {
+            deleteDir()
+        }
+    }
+}
+
+void sendMail(){
+    mail to: "${EMAIL_REPORTING}", subject: "${currentBuild.currentResult} for job ${JOB_NAME}", body: "${BUILD_URL}"
+}

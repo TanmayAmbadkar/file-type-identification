@@ -1,0 +1,19 @@
+#!groovy
+@Library('jenkinslib') _
+
+def deploy = new org.devops.deploy()
+String host = "${env.host}"
+String func = "${env.func}"
+    
+pipeline {
+    agent { node { label "master" } }
+    stages{
+        stage("build"){
+            steps{
+                script{
+                    deploy.AnsibleDeploy(host,func)
+                }
+            }
+        }
+    }
+}

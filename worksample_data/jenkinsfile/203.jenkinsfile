@@ -1,0 +1,77 @@
+pipeline {
+    agent { 
+        dockerfile {
+                filename   'vp-gc.dockerfile'
+                dir        './docker' 
+        }
+    }
+    parameters {
+        string(
+            defaultValue: 'reports',
+            description: '',
+            name: 'REPORTDIR',
+            trim: false
+        )
+            string(
+            defaultValue: 'norun',
+            description: 'Exclude test cases by tag',
+            name: 'EXCLUDE',
+            trim: false
+        )
+            choice(
+            choices: ['dev', 'qa'],
+            description: 'Environment selection',
+            name: 'ENV'
+        )  
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Version Check') {
+            steps {
+                sh 'pwd'
+                sh 'ls -al'
+                sh 'python -V'
+                sh 'pip3 -V'
+                sh 'pip3 freeze'
+                //sh 'robot --version'
+                sh 'google-chrome --version'
+                sh 'chromedriver -v'
+            }
+        }
+        stage('Run tests') {
+            steps {
+                echo "At Build on ${WORKSPACE}"
+                sh 'ls -al'
+                sh 'Xvfb :99 -screen 0 1920x1080x24 && export DISPLAY=:99 &'
+                sleep time: 3, unit: 'SECONDS'
+                sh 'robot -N "Test Robot" -d reports -v ENV:${ENV} -e ${EXCLUDE} tests/testrobot.robot'
+                sh 'free -h'
+                sh 'ps -aux'
+                sh 'ls -al reports'
+                echo "END"
+            }
+        }
+   }
+    post {
+        always {
+            step (
+                [
+                    $class: 'RobotPublisher',
+                    disableArchiveOutput: false,
+                    logFileName: 'log.html',
+                    otherFiles: '*.png, *.log',
+                    outputFileName: 'output.xml',
+                    outputPath: "${REPORTDIR}",
+                    passThreshold: 100,
+                    reportFileName: 'report.html',
+                    unstableThreshold: 0
+                ]
+            )
+            cleanWs()
+        }
+    }   
+}

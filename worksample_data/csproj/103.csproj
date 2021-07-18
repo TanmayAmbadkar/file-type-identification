@@ -1,0 +1,588 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{2063879B-D561-47FF-A0D5-6CEF2B9E4ABD}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>ClientsLibrary</RootNamespace>
+    <AssemblyName>ClientsLibrary</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CommonLibrary">
+      <HintPath>..\CommonLibrary\bin\Debug\CommonLibrary.dll</HintPath>
+    </Reference>
+    <Reference Include="HslCommunication, Version=5.7.3.0, Culture=neutral, PublicKeyToken=cdb2261fa039ed67, processorArchitecture=MSIL">
+      <HintPath>..\packages\HslCommunication.5.7.3\lib\net35\HslCommunication.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.12.0.1\lib\net35\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AccountSupport\FormAccountDetails.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AccountSupport\FormAccountDetails.Designer.cs">
+      <DependentUpon>FormAccountDetails.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AccountSupport\AccountLogin.cs" />
+    <Compile Include="AccountSupport\FormAccountSelect.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AccountSupport\FormAccountSelect.Designer.cs">
+      <DependentUpon>FormAccountSelect.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AccountSupport\FormInputNewRole.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AccountSupport\FormInputNewRole.Designer.cs">
+      <DependentUpon>FormInputNewRole.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BasicSupport\FormDownloading.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BasicSupport\FormDownloading.Designer.cs">
+      <DependentUpon>FormDownloading.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BasicSupport\FormGetInputString.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BasicSupport\FormGetInputString.Designer.cs">
+      <DependentUpon>FormGetInputString.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BasicSupport\FormShowMachineId.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BasicSupport\FormShowMachineId.Designer.cs">
+      <DependentUpon>FormShowMachineId.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BasicSupport\NetClientItem.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="BasicSupport\NetClientItem.Designer.cs">
+      <DependentUpon>NetClientItem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="BasicSupport\NetClientOnline.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="BasicSupport\NetClientOnline.Designer.cs">
+      <DependentUpon>NetClientOnline.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\ClientConfiguration.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\ClientConfiguration.Designer.cs">
+      <DependentUpon>ClientConfiguration.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\GeneralConfiguration.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\GeneralConfiguration.Designer.cs">
+      <DependentUpon>GeneralConfiguration.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\ListConfiguration.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\ListConfiguration.Designer.cs">
+      <DependentUpon>ListConfiguration.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\FormConfiguration.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration\FormConfiguration.Designer.cs">
+      <DependentUpon>FormConfiguration.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Configuration\RolesConfiguration.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Configuration\RolesConfiguration.Designer.cs">
+      <DependentUpon>RolesConfiguration.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FileSupport\FileOperateControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="FileSupport\FileOperateControl.designer.cs">
+      <DependentUpon>FileOperateControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FileSupport\FileSupport.cs" />
+    <Compile Include="FileSupport\FileItemShow.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="FileSupport\FileItemShow.Designer.cs">
+      <DependentUpon>FileItemShow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FileSupport\FormFileOperate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FileSupport\FormFileOperate.Designer.cs">
+      <DependentUpon>FormFileOperate.cs</DependentUpon>
+    </Compile>
+    <Compile Include="FileSupport\FormSimplyFileUpload.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FileSupport\FormSimplyFileUpload.designer.cs">
+      <DependentUpon>FormSimplyFileUpload.cs</DependentUpon>
+    </Compile>
+    <Compile Include="LogsSupport\FormLogView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="LogsSupport\FormLogView.Designer.cs">
+      <DependentUpon>FormLogView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="AccountSupport\FormRegisterAccount.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AccountSupport\FormRegisterAccount.Designer.cs">
+      <DependentUpon>FormRegisterAccount.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="SoftUpdateSupport\FormUpdateLog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SoftUpdateSupport\FormUpdateLog.designer.cs">
+      <DependentUpon>FormUpdateLog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SoftUpdateSupport\FormUpdateRemote.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SoftUpdateSupport\FormUpdateRemote.Designer.cs">
+      <DependentUpon>FormUpdateRemote.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="UserClient.cs" />
+    <Compile Include="AccountSupport\UserPortrait.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="AccountSupport\FormAccountDetails.resx">
+      <DependentUpon>FormAccountDetails.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AccountSupport\FormAccountSelect.resx">
+      <DependentUpon>FormAccountSelect.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AccountSupport\FormInputNewRole.resx">
+      <DependentUpon>FormInputNewRole.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BasicSupport\FormDownloading.resx">
+      <DependentUpon>FormDownloading.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BasicSupport\FormGetInputString.resx">
+      <DependentUpon>FormGetInputString.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BasicSupport\FormShowMachineId.resx">
+      <DependentUpon>FormShowMachineId.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BasicSupport\NetClientItem.resx">
+      <DependentUpon>NetClientItem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="BasicSupport\NetClientOnline.resx">
+      <DependentUpon>NetClientOnline.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\ClientConfiguration.resx">
+      <DependentUpon>ClientConfiguration.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\GeneralConfiguration.resx">
+      <DependentUpon>GeneralConfiguration.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\ListConfiguration.resx">
+      <DependentUpon>ListConfiguration.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\FormConfiguration.resx">
+      <DependentUpon>FormConfiguration.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration\RolesConfiguration.resx">
+      <DependentUpon>RolesConfiguration.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FileSupport\FileItemShow.resx">
+      <DependentUpon>FileItemShow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FileSupport\FileOperateControl.resx">
+      <DependentUpon>FileOperateControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FileSupport\FormFileOperate.resx">
+      <DependentUpon>FormFileOperate.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="FileSupport\FormSimplyFileUpload.resx">
+      <DependentUpon>FormSimplyFileUpload.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="LogsSupport\FormLogView.resx">
+      <DependentUpon>FormLogView.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="AccountSupport\FormRegisterAccount.resx">
+      <DependentUpon>FormRegisterAccount.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SoftUpdateSupport\FormUpdateLog.resx">
+      <DependentUpon>FormUpdateLog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SoftUpdateSupport\FormUpdateRemote.resx">
+      <DependentUpon>FormUpdateRemote.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="img\ExtensionManager_vsix_OSReg_16x.png" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\Flagthread_7317.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\person_1.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\7z.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ai.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\aiff.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\arj.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\asc.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\asp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\audio.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\avi.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\bin.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\bmp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\bz2.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\c.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\cdr.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\cfc.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\cfm.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\chm.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\class.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\conf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\cpp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\cs.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\css.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\csv.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\deb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\divx.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\doc.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\docx.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\dot.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\eml.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\enc.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\eps.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\exe.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\f4v.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\file.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\flv.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\gif.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\gz.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\hlp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\htm.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\html.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ics.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\image.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\iso.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\jar.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\java.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\jpg.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\js.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\jsp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\lua.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\m.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\mm.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\mov.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\mp3.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\mpg.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\msi.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\odc.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\odf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\odg.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\odi.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\odp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ods.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\odt.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ogg.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\pdf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\perl.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\pgp.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\php.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\pl.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\png.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ppt.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ps.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\psd.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\py.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ram.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\rar.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\rb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\rm.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\rpm.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\rtf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ruby.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\sig.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\sql.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\svg.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\swf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\sxc.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\sxd.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\sxi.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\sxw.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\tar.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\tex.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\tgz.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\tif.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\ttf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\txt.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\vb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\vcf.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\vdo.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\video.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\vsd.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\wav.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\wma.gif" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\xls.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\xml.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\xpi.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\xul.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\xvid.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="img\fileIcon\zip.png" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

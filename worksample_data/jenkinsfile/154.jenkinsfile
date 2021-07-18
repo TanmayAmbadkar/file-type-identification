@@ -1,0 +1,49 @@
+@Library('utils') _
+
+master_versions_location_base = """gs://fdk-infra-masterversions"""
+
+node ('helm-kubectl'){
+  container('helm-gcloud-kubectl') {
+    stage('Get versions for all envs') {
+      def output = wrapper.script( stepName: "Getting rollback version",
+                      script: "gsutil ls ${master_versions_location_base}/deployed/*/current",
+                      returnStdout: true)
+      def files = output.tokenize( '\n' )
+      def env_matrix = [:]
+      def html = '''<html>
+      <head>
+            <meta http-equiv="refresh" content="60">
+      </head>
+      <body><table><tr><th>Env</th><th>Version</th></tr>'''
+      files.each{ line ->
+        def result = (line =~ /^${master_versions_location_base}\/deployed\/(.*?)\/current\/(.*)\.yaml$/)
+        if (result) {
+          def env = result[0][1]
+          def version = result[0][2]
+          echo "found: " + env + " v" + version
+          env_matrix[env] = version
+          html = html + "<tr><td>${env}</td><td>${version}</td></tr>\n"
+        }
+      }
+      def now =  new Date()
+      html = html + """</tr></table> Generated on: """ + now.format("yyyy-MM-dd HH:mm:ss.SSS", TimeZone.getTimeZone('UTC')) +      """</body</html>"""
+      echo html
+      writeFile file: "env_table.html" , text: html
+
+      googleStorageUpload(credentialsId: "fdk-infra",
+                            bucket: "${master_versions_location_base}/deployed",
+                            pattern: "env_table.html")
+
+      withCredentials([file(credentialsId: 'fdk-infra-file', variable: 'SA')]) {
+        sh returnStatus: true, script: 'gcloud auth activate-service-account --key-file $SA'
+      }
+      wrapper.script( stepName: "Set file access",
+                    script: "gsutil acl ch -u AllUsers:R ${master_versions_location_base}/deployed/env_table.html",
+                    returnStatus: true)
+      def set_obj_meta = """gsutil setmeta -h "Content-Type:text/html" -h "Cache-Control:private, max-age=0, no-transform" -h "Content-Disposition: " """ + "${master_versions_location_base}/deployed/env_table.html"
+      wrapper.script( stepName: "Set file meta",
+                    script: set_obj_meta)
+
+    }
+  }
+}

@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
+    <PreserveCompilationContext>true</PreserveCompilationContext>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>SmartCode</ToolCommandName>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+    <Title>SmartCode.CLI</Title>
+    <Authors>Ahoo Wang</Authors>
+    <PackageReleaseNotes>
+
+    </PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmartCode.ETL.LoadToES\SmartCode.ETL.LoadToES.csproj" />
+    <ProjectReference Include="..\SmartCode.ETL.SQLite\SmartCode.ETL.SQLite.csproj" />
+    <ProjectReference Include="..\SmartCode.App\SmartCode.App.csproj" />
+    <ProjectReference Include="..\SmartCode.Db\SmartCode.Db.csproj" />
+    <ProjectReference Include="..\SmartCode.ETL.PostgreSql\SmartCode.ETL.PostgreSql.csproj" />
+    <ProjectReference Include="..\SmartCode.ETL\SmartCode.ETL.csproj" />
+    <ProjectReference Include="..\SmartCode.Generator\SmartCode.Generator.csproj" />
+    <ProjectReference Include="..\SmartCode\SmartCode.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\doc\SmartCode-ETL-ES.yml" Link="SmartCode-ETL-ES.yml" />
+    <None Include="..\..\doc\smartcode-etl.db" Link="smartcode-etl.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\doc\SmartCode-ETL.yml" Link="SmartCode-ETL.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\doc\SmartCode-Spring-Boot.yml" Link="SmartCode-Spring-Boot.yml" />
+    <None Include="..\..\doc\SmartCode.yml" Link="SmartCode.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Content Include="..\..\doc\SmartCode.json" Link="SmartCode.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="nupkg\" />
+    <Folder Include="Properties\" />
+    
+  </ItemGroup>
+</Project>

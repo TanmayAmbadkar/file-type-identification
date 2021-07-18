@@ -1,0 +1,41 @@
+def Pod_Label = "jenkins-slave-${UUID.randomUUID().toString()}"
+
+
+pipeline {
+    
+    agent {
+        kubernetes {
+            label Pod_Label
+            cloud 'kubernetes'
+            yamlFile 'jenkins-slave.yaml'
+        }
+    }
+
+    stages {
+        stage('Run maven build') {
+            steps {
+                container('maven') {
+                    sh 'mvn clean package -Dmaven.test.skip=true'
+                }
+            }
+        }
+        stage('Run docker build') {
+            steps {
+                container('dind') {
+                    sh """
+                    docker login -u admin -p 123.gome harbor.k8s.gome.inc
+                    docker build -t harbor.k8s.gome.inc/demo/ping:v1 .
+                    docker push harbor.k8s.gome.inc/demo/ping:v1
+                    """
+                }
+            }
+        }
+        stage('Run kubernetes deploy') {
+            steps {
+                container('jnlp') {
+                    kubernetesDeploy configs: 'ping-deployment.yaml', kubeConfig: [path: ''], kubeconfigId: 'kubernetes', secretName: '', ssh: [sshCredentialsId: '*', sshServer: ''], textCredentials: [certificateAuthorityData: '', clientCertificateData: '', clientKeyData: '', serverUrl: 'https://']
+                }
+            }
+        }
+    }
+}

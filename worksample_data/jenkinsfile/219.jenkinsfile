@@ -1,0 +1,35 @@
+@Library('utils') _
+
+stage ('Delete env') {
+  node('helm-kubectl') {
+    container('helm-gcloud-kubectl') {
+      def gcp_project_name = "fdk-e2e"
+
+      withCredentials([file(credentialsId: "${gcp_project_name}-k8s", variable: 'SA')]) {
+        sh returnStatus: true, script: 'gcloud auth activate-service-account --key-file $SA'
+      }
+      sh(returnStatus: true,
+        script: """
+        gcloud config set project """ + gcp_project_name + """
+        gcloud container clusters get-credentials """ + gcp_project_name + """ --region europe-north1-a
+        gcloud config set compute/region europe-north1-a
+        gcloud config set compute/zone europe-north1
+        """)
+      def output = sh(returnStdout: true, script: "kubectl get namespaces").trim()
+      if (output != "") {
+        def lines = output.split('\n')
+        lines.each{ line ->
+          if (line.startsWith("tmp")) {
+            def env_name = line.split(" ")[0]
+            build job: 'deploy-scripts/delete-tmp', wait: false, parameters: [[$class: 'StringParameterValue', name: 'tmp_env', value: env_name],
+                                                              [$class: 'StringParameterValue', name: 'delete_after_minutes', value: "1"]]
+          }
+        }
+      }
+      // give some time to cluster to recover.
+      sleep(120)
+      // force cluster to resize down to 0
+      sh "gcloud container --project ${gcp_project_name} clusters resize ${gcp_project_name} --node-pool pool-1 --size 0 --region europe-north1-a -q"
+    }
+  }
+}

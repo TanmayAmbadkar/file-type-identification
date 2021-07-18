@@ -1,0 +1,30 @@
+pipeline {
+  agent {
+    kubernetes {
+      defaultContainer 'jnlp'
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: some-label-value
+spec:
+  containers:
+  - name: python
+    image: python:3.8.0b2-buster
+    tty: true
+"""
+    }
+  }
+  stages {
+    stage('Run Ansible Demo') {
+      steps {
+        container('python') {
+            git url: 'https://github.com/shamsalmon/ansible-demo.git'
+            sh 'pip install ansible boto boto3 pywinrm'
+            sh 'ansible-playbook -i inventory/ windows.yml'
+        }
+      }
+    }
+  }
+}

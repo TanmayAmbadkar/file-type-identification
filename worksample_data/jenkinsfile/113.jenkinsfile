@@ -1,0 +1,188 @@
+import org.jenkinsci.plugins.pipeline.modeldefinition.Utils
+
+// Below sbt credential keys does not work to clone the dependant projects like sbt-datalake-webportal/sbt-datalake-webportal-api
+//TODO: review this later to figure out the issue
+//CRED_ID = 'sbt-datalake-platform-deploy-key'
+//CRED_ID = 'sbt-service-user'
+
+CRED_ID = 'fca9e882-f60a-43ea-b236-35214919ffba'//'ashishmgit'
+JENKINS_CRED_ID_AWS = 'rean-big-data-platform'
+DEPLOYMENT_FILE = 'CI-CD/deployment.yaml'
+BUILD_FILE = 'build.sh'
+
+pipeline {
+    agent any
+    parameters {
+        string(name: 'LAYER_NAME', defaultValue: '', description: 'OPTIONAL: Which layer to build? Ex: aws/generic-iam-groups. Empty value means all layers')
+        string(name: 'DEPENDANT_PROJECTS', defaultValue: 'develop@sbt-datalake-webportal,develop@sbt-datalake-webportal-api', description: 'OPTIONAL: Comma-Separated list of dependant projects')
+        booleanParam(name: 'BUILD', defaultValue: 'true', description: 'Do you want to build the artifacts?')
+        booleanParam(name: 'UPLOAD', defaultValue: 'true', description: 'Do you want to upload the artifacts to artifactory?')
+	string(name: 'AWS_ARTIFACTS_BUCKET', defaultValue: 'sbt-datalake-platform-artifacts', description: 'Artifact bucket name')
+    }
+    
+    environment {
+        //this will be used to rename the artifacts with git commit hash
+        GIT_COMMIT_SHORT = env.GIT_COMMIT.take(7)
+    }
+    
+    stages {
+        stage ('Dependant Projects Checkout') {
+           steps {
+              echo "**************Checkout***************"
+              checkoutDependantProjects()
+           }
+        }
+	stage ('Prepare to Build/Upload Layers') {
+	   steps {
+	      script {
+	         echo "Deployment file : ${DEPLOYMENT_FILE}"
+	         //build all the layers, if the USER PARAM for layer_name does not exists
+	         def layerName = params.LAYER_NAME
+                 if (layerName?.trim()) {
+	            if (params.BUILD) buildLayer(layerName, true)
+		    if (params.UPLOAD) uploadArtifactForLayer(layerName, true)
+                 } else {
+                    if (params.BUILD) buildAllLayers(DEPLOYMENT_FILE)
+		    if (params.UPLOAD) uploadArtifactForAllLayers(DEPLOYMENT_FILE)
+	         }
+	      }
+	   }
+	}
+    }
+    post {
+       always {
+          echo "**************DONE**************"
+       }
+    }
+}
+
+/**
+* HELPER METHODS
+*
+**/
+
+void checkoutDependantProjects() {
+  if (params.DEPENDANT_PROJECTS?.trim()) {
+      params.DEPENDANT_PROJECTS.split(',').each { projects ->
+          def (branchName, projectName) = projects.trim().tokenize( '@' )
+          dir("${projectName}") {
+            git branch: "${branchName}", credentialsId: "${CRED_ID}", url: "https://github.com/reancloud/${projectName}.git"
+            //git branch: "${branchName}", credentialsId: "${CRED_ID}", url: "git@github.com:reancloud/${projectName}.git"
+          }
+      }
+   }   
+}
+
+void buildAllLayers(String deploymentFile) {
+      def Map deploymentFileMap = readYaml file: deploymentFile
+      deploymentFileMap.layers.each { layer ->
+         buildLayer(layer, false)
+     }
+}
+
+void buildLayer(String layer, Boolean failIfNotFound) {
+     def buildFilePath = getBuildFilePath(layer, failIfNotFound)
+     stage("build ${layer}") {
+        if (buildFilePath?.trim()) {
+            echo "Start build for ${layer} using ${buildFilePath}/${BUILD_FILE}"
+	    try {
+		def status = sh(script: "cd ${buildFilePath}; ./${BUILD_FILE}", returnStdout: true).trim() as String
+		echo ("status = ${status}")
+		createArtifact(layer)
+	    } catch(Exception e) {
+		echo "Failed: ${e.message}"
+		throw new Exception("Build failed. Stop the pipeline")
+	    }
+	} else {
+	      echo ("Skip the layer ${layer}")
+	      Utils.markStageSkippedForConditional("build ${layer}")
+	}
+    }
+}
+
+def getBuildFilePath(String layer, Boolean failIfNotFound) {
+     def buildFilePath = "environments/${layer}"
+     echo "Check if build script exists at location ${buildFilePath}"
+     try {
+	  def status = sh(script: "ls ${buildFilePath}/${BUILD_FILE}", returnStdout: true).trim() as String
+	  echo ("status = ${status}")
+      } catch(Exception e) {
+	  echo "environments/${layer}/${BUILD_FILE} does not exists!!! : ${e.message}"
+	  if(failIfNotFound) {
+	     throw new Exception("environments/${layer}/${BUILD_FILE} does not exists!!!. Stop the pipeline")
+	  }
+	  buildFilePath = ""
+      }
+      return buildFilePath
+}
+
+void createArtifact(String layer) {
+   try {
+      echo "Archive artifacts for ${layer}"
+      def (cloudProvider, layerName) = layer.tokenize( '/' )
+      def zipFileName = "${cloudProvider}-${layerName}-${env.GIT_COMMIT_SHORT}.zip"
+      def status = sh(script: "cd environments/${layer}/artifacts; zip ${zipFileName} *", returnStdout: true).trim() as String
+      echo ("status = ${status}")
+      archiveArtifacts artifacts: "environments/${layer}/artifacts/${zipFileName}", allowEmptyArchive: true, fingerprint: true
+   } catch(Exception e) {
+      echo "Failed: ${e.message}"
+      throw new Exception("Archive failed. Stop the pipeline")
+   }
+}
+
+void uploadArtifactForAllLayers(String deploymentFile) {
+   def Map deploymentFileMap = readYaml file: deploymentFile
+   deploymentFileMap.layers.each { layer ->
+      uploadArtifactForLayer(layer, false)
+   }
+}
+
+void uploadArtifactForLayer(String layer, Boolean failIfNotFound) {
+   def artifactZipFileName = getArtifactZipFileName(layer, failIfNotFound)
+   stage("Upload artifact ${layer}") {
+      if (artifactZipFileName?.trim()) {
+         echo "Start upload artifact zip for ${layer} file name ${artifactZipFileName}"
+         try {
+              def (cloudProvider, layerName) = layer.tokenize( '/' )
+              def artifactLayerName = "${cloudProvider}-${layerName}"
+	      def artifactDir = "environments/${layer}/artifacts"
+              def status = sh(script: "ls ${artifactDir}/${artifactZipFileName}", returnStdout: true).trim() as String
+              echo ("status = ${status}")
+              withAWS(region:'us-east-1',credentials:"${JENKINS_CRED_ID_AWS}") {
+                //take a backup of existing file and then upload new file. Just in-case if we require the old file
+                try {
+                   s3Copy(fromBucket:"${params.AWS_ARTIFACTS_BUCKET}", fromPath:"${artifactLayerName}/${artifactZipFileName}", toBucket:"${params.AWS_ARTIFACTS_BUCKET}", toPath:"${artifactLayerName}/${artifactZipFileName}.${currentBuild.startTimeInMillis}")
+                } catch (Exception e) {
+                   //nothing to backup, so ignore this error
+                   echo "ignore, as nothing to backup: ${e.message}"
+                }
+                s3Upload(file:"${artifactDir}/${artifactZipFileName}", bucket:"${params.AWS_ARTIFACTS_BUCKET}", path:"${artifactLayerName}/${artifactZipFileName}")
+              }
+            } catch(Exception e) {
+                echo "Failed: ${e.message}"
+                throw new Exception("Upload artifact failed. Stop the pipeline")
+            }
+      } else {
+          echo ("Skip the layer ${layer}")
+          Utils.markStageSkippedForConditional("Upload artifact ${layer}")
+      }
+   }
+}
+
+void getArtifactZipFileName(String layer, Boolean failIfNotFound) {
+   def (cloudProvider, layerName) = layer.tokenize( '/' )
+   def artifactZipFileName = "${cloudProvider}-${layerName}-${env.GIT_COMMIT_SHORT}.zip"
+   def artifactFilePath = "environments/${layer}/artifacts/${artifactZipFileName}"
+   try {
+       echo "Checking if artifacts exists for ${layer}"
+       def status = sh(script: "ls ${artifactFilePath}", returnStdout: true).trim() as String
+       echo ("status = ${status}")
+    } catch(Exception e) {
+       echo "${artifactFilePath} does not exists!!! : ${e.message}"
+       if(failIfNotFound) {
+          throw new Exception("${artifactFilePath} does not exists!!!. Stop the pipeline")
+       }
+       artifactZipFileName = ""
+    }
+    return artifactZipFileName
+}

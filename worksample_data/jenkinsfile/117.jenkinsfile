@@ -1,0 +1,57 @@
+#!groovy
+@Library('jenkins') _
+
+def build = new org.devops.build()
+def deploy = new org.devops.deploy()
+  
+String buildType = "${env.buildType}"
+String buildShell = "${env.buildShell}"
+String deployHosts = "${env.deployHosts}"
+pipeline{
+  agent{ node{ label 'master' }}
+  stages{
+    stage("build"){
+      steps{
+        script{
+          build.Build(buildType,buildShell)
+          
+          deploy.AnsibleDeploy("${deployHosts}","-m ping")
+        }
+      }
+    }
+    /*stage("ant build"){
+      steps{
+        script{
+          try{
+             antHome = tool "ANT"
+             sh "${antHome}/bin/ant ${buildShell}"
+          }catch(e){
+            println(e)
+          }
+        }
+      }
+    }
+    stage("GradleBuild"){
+      steps{
+        script{
+          try{
+            GradleHome = tool "Gradle"
+            sh "${GradleHome}/bin/gradle ${buildShell}"
+          }catch(e){
+            println(e)
+          }
+        }
+      }
+    }
+    stage("webBuild"){
+      steps{
+        script{
+           npmHome = tool "NodeJS"
+           sh "export NODE_HOME=/usr/local/node-v14.15.1-linux-x64 && export PATH=\$NODE_HOME/bin:\$PATH  && ${npmHome}/bin/npm ${buildShell}"
+        }
+      }
+    }*/
+    
+  }
+
+}

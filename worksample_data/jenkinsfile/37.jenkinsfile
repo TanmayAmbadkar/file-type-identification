@@ -1,0 +1,82 @@
+pipeline {
+    agent {
+        label 'bastion'
+    }
+
+   //todos los params necesarios
+    parameters {        //datos AWS necesarios
+        string(name: 'AWS_ACCESS_KEY_ID', defaultValue: '', description: 'AWS_ACCESS_KEY_ID')
+        string(name: 'AWS_SECRET_ACCESS_KEY', defaultValue: '', description: 'AWS_SECRET_ACCESS_KEY')
+        string(name: 'AWS_DEFAULT_REGION', defaultValue: 'us-east-1', description: 'AWS_DEFAULT_REGION')
+        string(name: 'Repo_GIT', defaultValue: 'https://github.com/lramirezq/terraform.git', description: 'Repositorio GIT')
+
+        //Parametros Terraform
+        string(name: 'terraform_profile', defaultValue: 'default', description: '')
+        string(name: 'terraform_region', defaultValue: 'us-east-1', description: '')
+        string(name: 'terraform_project', defaultValue: '3HTP', description: '')
+        string(name: 'terraform_environment', defaultValue: 'QA', description: '')
+        string(name: 'terraform_approvedBy', defaultValue: 'LRAMIREZ', description: '')
+        string(name: 'terraform_createdBy', defaultValue: 'LRAMIREZ', description: '')
+        string(name: 'terraform_centercost', defaultValue: 'LRAMIREZ', description: '')
+        string(name: 'terraform_target_group_name', defaultValue: 'LRAMIREZ-TG', description: '')
+        string(name: 'terraform_target_group_port', defaultValue: '7000', description: '')
+        string(name: 'terraform_target_group_protocol', defaultValue: 'HTTP', description: '')
+        string(name: 'terraform_vpc_id',    defaultValue: '', description: '')
+        string(name: 'terraform_autoscaling_group_name', defaultValue: '', description: '')
+        string(name: 'terraform_api_name', defaultValue: '', description: '')
+        string(name: 'terraform_protocol_type', defaultValue: 'HTTP', description: '')
+        string(name: 'terraform_vpc_link_id', defaultValue: '', description: '')
+        string(name: 'terraform_integration_type', defaultValue: 'HTTP_PROXY', description: '')
+        string(name: 'terraform_integration_method', defaultValue: 'ANY', description: '')
+        string(name: 'terraform_alb_listener_arn', defaultValue: '', description: '')
+        string(name: 'terraform_bucket', defaultValue: 'terraform', description: '')
+        string(name: 'terraform_key', defaultValue: 'qa/lrq/terraform.states', description: '')
+    }
+    stages {
+        stage('Get Code') {
+            steps {
+                deleteDir()
+                // Get some code from a GitHub repository
+                sh "export"
+                sh "ls -ltra"
+                git '${Repo_GIT}'
+                sh "ls -ltr"
+            }
+        }
+        stage('Replace Values') {
+            steps {
+                sh "echo 'vamos a remmplazar datos'"
+                sh '''
+                    #!/bin/bash
+                        
+                    tokens=$(grep -o -P '(?<=&).*(?=&)' *)
+                    echo "tokens = $tokens"
+                    for t in $tokens;
+                    do
+                        #dividir tokens
+                        IFS=':' read -ra my_array <<< "$t"
+                        valor_new=$(export | grep ${my_array[1]} | cut -d = -f 2 | sed -e 's/^.//' -e 's/.$//')
+                        echo "debemos reemplazar ${my_array[1]} por $valor_new" 
+                        echo "sed -i 's|&${my_array[1]}&|$valor_new|g' ${my_array[0]}" >> replace_token.sh
+                    done
+                    chmod +x replace_token.sh
+                    ./replace_token.sh
+                    rm -f replace_token.sh
+                '''
+            }
+        }
+        stage('Terraform Init') {
+            steps {
+              sh "echo 'Iniciando Terraform...'"
+              sh "terraform init"
+            }
+        }
+        stage('Terraform Apply') {
+            steps {
+              sh "echo 'Applicando Terraform...'"
+              sh 'terraform apply -var-file="terraform.tfvars" -auto-approve'
+            }
+        }
+    }
+}
+

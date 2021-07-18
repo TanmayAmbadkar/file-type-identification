@@ -1,0 +1,15 @@
+pipeline {
+    agent { label 'local'}
+
+    stages {
+        stage('Rebooting Ubiquiti AP'){
+            steps{
+                withCredentials([usernamePassword(credentialsId: 'glinki-ap-admin', usernameVariable: 'UBNT_LOGIN', passwordVariable: 'UBNT_PASS')]) {
+                script{
+                    sh 'sudo pwsh ./powershell/reboot_ubiquiti_ap.ps1 -ubi_ap_ip 10.0.11.102 -ubi_usr ${UBNT_LOGIN} -ubi_pwd ${UBNT_PASS}'
+                    }
+                }
+            }
+        }
+    }
+}

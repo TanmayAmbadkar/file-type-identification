@@ -1,0 +1,46 @@
+#!groovy
+
+@Library('jenkinslib@master') _
+
+//func from shareibrary
+
+def build = new org.devops.build()
+def deploy = new org.devops.deploy()
+
+//env
+
+String buildShell = "${env.buildShell}"
+String buildType = "${env.buildType}"
+String deployHosts = "${env.deployHosts}"
+String srcUrl = "${env.srcUrl}"
+String branchName = "${env.branchName}"
+
+if ("${runOpts}" == "GitlabPush"){
+    branchName = branch - "refs/heads/" 
+    currentBuild.description = "Trigger by ${userName} ${branch}"    
+}
+
+//pipeline
+
+pipeline{
+    agent { node { label "master"}}     
+    
+       
+    stages{
+        stage("CheckOut"){
+            steps{
+                script{                 
+                    checkout([$class: 'GitSCM', branches: [[name:"${branchName}"]], extensions: [], userRemoteConfigs: [[credentialsId: 'ef208191-527c-4630-a677-b81696446562', url: "${srcUrl}"]]])
+                }
+            }
+        }
+        stage("build"){
+            steps{
+                script{
+                    build.Build(buildType,buildShell)
+                    
+                }
+            } 
+        }        
+    } 
+}     

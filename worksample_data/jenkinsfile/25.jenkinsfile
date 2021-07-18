@@ -1,0 +1,240 @@
+pipeline {
+  agent none
+  environment {
+        // notice
+        dingtalk_api = 'https://oapi.dingtalk.com/robot/send?access_token=ddffcbdc1e86588f7eb8680559d9d8cb31bda870d8ebfb0d9d109e6340b2bd2c'
+        task_type = 'Kefu-Java-测试环境'
+        at_user = '18221016411'
+
+        // Spring 启动的配置文件
+        spring_profiles = 'test_cluster1'
+        maven_dir = 'test'
+
+        // gitlab
+        git_url = 'http://gitlab.runxsports.com/customer-service'
+        branch = 'test'
+        project_name = 'component-eureka-cs'
+
+        // ansible
+        inventory = '/data/ansible/hosts'
+        playbook = '/data/ansible/test-java-task.yml'
+        docker_java_version = "${kefu_java_version}"
+        log_folder = 'kefu-test'
+  }
+  stages {
+    stage('GIT SCM') {
+      agent {label 'master'}
+      steps {
+        git branch: "${branch}",
+            credentialsId: '74776acf-37b4-4cca-a34f-1e045a82c047', 
+            url: "${git_url}/${project_name}.git"
+        // sh "git rev-parse --short HEAD > .git/commit-id"
+        script {
+          env.git_commit_id = sh (
+            script: 'git rev-parse --short HEAD',
+            returnStdout: true
+          ).trim()
+          env.git_author = sh (
+            script: "git log -1 --pretty=format:'%an'",
+            returnStdout: true
+          ).trim()
+        }
+      }
+    }
+
+    stage('Tests') {
+      agent { 
+        docker { 
+          image "maven:${kefu_maven_version}"
+          args "-v /data/job_tmp/${maven_dir}.m2:/root/.m2"
+        } 
+      }
+      steps {
+        sh 'mvn -v'
+        sh 'mvn test'
+      }
+      post {
+        failure {
+          sh '''curl ${dingtalk_api} \
+                  -H 'Content-Type: application/json' \
+                  -d "
+                    {
+                      'at': {
+                        'atMobiles': [ '${at_user}' ]
+                      },
+                      'msgtype': 'markdown',
+                      'markdown': {
+                            'title': 'Jenkins 任务失败', 
+                            'text': '### ${task_type}-单元测试失败
+#### @${at_user}
+###### 执行 单元测试任务 
+###### 执行时间：${BUILD_TIMESTAMP}
+###### 项目名称：【 ${JOB_NAME} 】 
+###### 构建编号：${BUILD_DISPLAY_NAME}
+###### 版本编号：${git_commit_id}
+###### 版本作者：${git_author}
+###### 执行状态：**失败**
+###### 执行命令：mvn test
+###### 请登录Jenkins查看详细细节
+- [点击查看](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_NUMBER}/tests)', 
+                      }
+                    }" '''
+        }
+      }
+    }
+
+    stage('Build') {
+      agent {
+        docker { 
+          image "maven:${kefu_maven_version}"
+          args "-v /data/job_tmp/${maven_dir}.m2:/root/.m2"
+        }
+      }
+      steps {
+        sh 'mvn -v'
+        sh 'mvn -DskipTests clean package' 
+        script {
+          env.jar_path = sh (
+            script: "ls target/*.jar",
+            returnStdout: true
+          ).trim()
+          env.jar_name = sh (
+            script: "basename '$jar_path'",
+            returnStdout: true
+          ).trim()
+          env.jar_base_name = sh (
+            script: "basename '$jar_path' .jar",
+            returnStdout: true
+          ).trim()
+        }
+      }
+      post {
+        failure {
+          sh '''curl ${dingtalk_api} \
+                  -H 'Content-Type: application/json' \
+                  -d "
+                    {
+                      'at': {
+                        'atMobiles': [ '${at_user}' ]
+                      },
+                      'msgtype': 'markdown',
+                      'markdown': {
+                            'title': 'Jenkins 任务失败', 
+                            'text': '### ${task_type}-构建失败
+#### @${at_user}
+###### 执行 构建任务 
+###### 执行时间：${BUILD_TIMESTAMP}
+###### 项目名称：【 ${JOB_NAME} 】 
+###### 构建编号：${BUILD_DISPLAY_NAME}
+###### 版本编号：${git_commit_id}
+###### 版本作者：${git_author}
+###### 执行状态：**失败**
+###### 执行命令：mvn -DskipTests clean package
+###### 请登录Jenkins查看详细细节
+- [点击查看](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_NUMBER}/pipeline)', 
+                      }
+                    }" '''
+        }
+      }
+    }
+
+    stage('Deploy') { 
+      agent {
+        docker{
+          image 'qq79428316/club-ansible:2.4.2.0'
+          args "-v /data/ansible:/data/ansible -e ANSIBLE_HOST_KEY_CHECKING=False -e jar_path=${env.jar_path} -e jar_name=${env.jar_name} -e jar_base_name=${env.jar_base_name} -e git_commit_id=${env.git_commit_id}"
+        }
+      } 
+      steps {
+        sh '''curl ${dingtalk_api} \
+                -H 'Content-Type: application/json' \
+                -d "
+                  {
+                    'at': {
+                      'atMobiles': [ '${at_user}' ]
+                    },
+                    'msgtype': 'markdown',
+                    'markdown': {
+                          'title': 'Jenkins 确认发布？？', 
+                          'text': '### ${task_type}-构建成功
+#### @${at_user}
+###### 执行 构建任务 
+###### 执行时间：${BUILD_TIMESTAMP}
+###### 项目名称：【 ${JOB_NAME} 】 
+###### 构建编号：${BUILD_DISPLAY_NAME}
+###### 版本编号：${git_commit_id}
+###### 版本作者：${git_author}
+###### 执行状态：**成功**
+###### **请登录Jenkins查看确认是否发布到【${spring_profiles}】环境**
+- [点击查看](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_NUMBER}/pipeline)', 
+                    }
+                  }" '''
+        input message: "确定发布Git版本编号为[${git_commit_id}]的版本到[${spring_profiles}]环境吗？", ok: '立即发布'
+        archiveArtifacts artifacts: "target/*.jar", fingerprint: true, onlyIfSuccessful: true
+        ansiblePlaybook inventory: "${inventory}", 
+                        playbook: "${playbook}",
+                        colorized: true
+      }
+      post {
+        failure {
+          sh '''curl ${dingtalk_api} \
+                  -H 'Content-Type: application/json' \
+                  -d "
+                    {
+                      'at': {
+                        'atMobiles': [ '${at_user}' ]
+                      },
+                      'msgtype': 'markdown',
+                      'markdown': {
+                            'title': 'Jenkins 任务失败', 
+                            'text': '### ${task_type}-部署失败
+#### @${at_user}
+###### 执行 部署任务 
+###### 执行时间：${BUILD_TIMESTAMP}
+###### 项目名称：【 ${JOB_NAME} 】 
+###### 构建编号：${BUILD_DISPLAY_NAME}
+###### 版本编号：${git_commit_id}
+###### 版本作者：${git_author}
+###### 执行状态：**失败**
+###### 执行命令：ansible-playbook
+###### 请登录Jenkins查看详细细节
+- [点击查看](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_NUMBER}/pipeline)', 
+                      }
+                    }" '''
+        }
+      }
+    }
+  }
+
+
+  post {
+    success {
+      node('master') {
+        sh '''curl ${dingtalk_api} \
+                -H 'Content-Type: application/json' \
+                -d "
+                  {
+                    'at': {
+                      'atMobiles': [ '${at_user}' ]
+                    },
+                    'msgtype': 'markdown',
+                    'markdown': {
+                      'title': 'Jenkins任务成功', 
+                      'text': '### ${task_type}-部署成功
+#### @${at_user}
+###### 执行 单元测试+构建+部署任务
+###### 执行时间：${BUILD_TIMESTAMP}
+###### 项目名称：【 ${JOB_NAME} 】 
+###### 构建编号：${BUILD_DISPLAY_NAME}
+###### 版本编号：${git_commit_id}
+###### 版本作者：${git_author}
+###### 执行状态：**成功**
+- [点击查看详细细节](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_NUMBER}/pipeline)', 
+                    }
+                  }" '''
+      }
+    }
+  }
+
+
+}

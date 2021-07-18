@@ -1,0 +1,23 @@
+pipeline {
+    agent any 
+    stages {
+        stage('Build') { 
+            steps {
+                    println("Code done executing...");	
+
+            }
+        }
+        stage('Test') { 
+            steps {
+                    println("Code done executing 2...");	
+
+            }
+        }
+        stage('Deploy') { 
+            steps {
+                    println("Code done executing 3...");	
+
+            }
+        }
+    }
+}

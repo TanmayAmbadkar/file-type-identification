@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+      stages {
+        stage ('Json lint reandeploy blueprint') {
+            steps {
+                script {
+                        println "\u001B[34m\u001B[1m**************\u001B[0m"
+                        println "\u001B[34m\u001B[1mjson linting for reandeploy blueprint\u001B[0m"
+                        println "\u001B[34m\u001B[1m**************\u001B[0m"
+                        try {
+
+                               sh 'jsonlint-php *.reandeploy'
+
+                            println "\u001B[32mCode adheres to JsonLint\u001B[0m"
+                        } catch (Exception e) {
+                            println "\u001B[31m********************************************************\u001B[0m"
+                            println "\u001B[31mFAILED: JsonLint linting warning. Please fix the issues\u001B[0m"
+                            println "\u001B[31m********************************************************\u001B[0m"
+                        }
+                    }   
+                }
+            }
+    }
+    post {
+        always {
+            deleteDir()
+        }
+    }
+}

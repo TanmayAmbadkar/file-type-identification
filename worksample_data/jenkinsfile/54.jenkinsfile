@@ -1,0 +1,226 @@
+pipeline {
+    agent { node 'master' }
+    environment {
+        app = "simple-testing-capabilities:latest"
+        app2 = "simple-testing-capabilities-spa:latest"
+        registry_url = "803808824931.dkr.ecr.us-east-1.amazonaws.com"
+        app_backend = "simple-testing-capabilities:latest"
+        app_port_backend = "50504"
+        app_frontend = "simple-testing-capabilities-spa:latest"
+        app_port_frontend = "3000"
+        app_db = "cicd-redis:latest"
+        app_port_db = "6379"
+        sonar_db_login = credentials('sonar-login')
+        sonar_db_passwd = credentials('sonar-passwd')
+    }
+    stages {
+        stage ('[i] Clean WC') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                cleanWs()
+            }
+        }
+        stage ('[i] GIT') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                dir ("ci-cd-app") {
+                    git branch: 'master', credentialsId: 'github', url: 'https://github.com/publius-github/ci-cd-app.git'
+                }
+                dir ("ci-cd-infra") {
+                    git branch: 'master', credentialsId: 'github', url: 'https://github.com/publius-github/ci-cd.git'
+                }
+            }
+        }
+        stage('[i] Fargate configure') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                    sh '''
+                    echo "=========================== Build docker $app image ==========================="
+                    cd ${WORKSPACE}/ci-cd-app/
+                    sed -i -e 's/"redis",/"db.simple-testing-capabilities.co.uk",/g' simple-testing-capabilities/MainProject/appsettings.json
+                    sed -i -e "s/localhost/backend.simple-testing-capabilities.co.uk/g" ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-spa/src/ProjectSettings.json
+                    sed -i -e "s/localhost/backend.simple-testing-capabilities.co.uk/g" ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-ui-tests/APITests/appsettings.json
+                    sed -i -e "s/localhost/frontend.simple-testing-capabilities.co.uk/g" ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-ui-tests/UITests/appsettings.json
+                    '''
+                }
+        }
+        stage('[i] Docker build [simple-testing-capabilities]') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                    sh '''
+                    echo "=========================== Build docker $app image ==========================="
+                    cd ${WORKSPACE}/ci-cd-app/
+                    /usr/bin/docker build -f "simple-testing-capabilities.dockerfile" -t $registry_url/$app .
+                    $(aws ecr get-login --no-include-email --region us-east-1)
+                    docker push $registry_url/$app
+                    '''
+                }
+        }
+        stage('[i] Docker build [simple-testing-capabilities-spa]') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                    sh '''
+                    echo "=========================== Build docker $app2 image ==========================="
+                    cd ${WORKSPACE}/ci-cd-app/
+                    /usr/bin/docker build -f "simple-testing-capabilities-spa.dockerfile" -t $registry_url/$app2 .
+                    $(aws ecr get-login --no-include-email --region us-east-1)
+                    docker push $registry_url/$app2
+                    '''
+            }
+        }
+	    stage('[i] Sonarqube: simple-testing-capabilities') {
+        agent { node 'aws-ec2-dev' }
+		    steps {
+			        sh '''
+                    echo "====================== Sonarqube: simple-testing-capabilities ======================"
+                    cd ${WORKSPACE}/ci-cd-app/simple-testing-capabilities/MainProject
+                    dotnet publish --output publish
+                    $(aws ecr get-login --no-include-email --region us-east-1)
+                    docker run -dit --rm -v ${WORKSPACE}/ci-cd-app/simple-testing-capabilities/MainProject:/usr/src 803808824931.dkr.ecr.us-east-1.amazonaws.com/cicd-sonar-runner:latest sonar-scanner   \
+                    -Dsonar.host.url=http://10.0.1.100:9000 \
+                    -Dsonar.jdbc.url=jdbc:postgresql://10.0.1.100:5432/sonar \
+                    -Dsonar.jdbc.username=$sonar_db_login \
+                    -Dsonar.jdbc.password=$sonar_db_passwd \
+                    -Dsonar.projectBaseDir=/usr/src \
+                    -Dsonar.sources=. \
+                    -Dsonar.projectKey=${JOB_NAME}-${BUILD_NUMBER} \
+                    -Dsonar.projectName=${JOB_NAME} \
+                    -Dsonar.projectVersion=${BUILD_NUMBER} \
+                    -Dsonar.projectBaseDir=/usr/src \
+                    -Dsonar.sources=.
+                    sudo rm -rf ${WORKSPACE}/ci-cd-app/simple-testing-capabilities/MainProject/.scannerwork
+                    echo "======== sonar results ========"
+                    echo "http://jenkins.simple-testing-capabilities.co.uk:9000/dashboard?id=${JOB_NAME}-${BUILD_NUMBER}" 
+                    echo "==============================="
+                    '''
+		    }
+	    }
+        stage('[i] Sonarqube: simple-testing-capabilities-spa') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                    sh '''
+                    echo "====================== Sonarqube: simple-testing-capabilities-spa ======================"
+                    $(aws ecr get-login --no-include-email --region us-east-1)
+                    docker run -dit --rm -v ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-spa:/usr/src 803808824931.dkr.ecr.us-east-1.amazonaws.com/cicd-sonar-runner:latest sonar-scanner   \
+                    -Dsonar.host.url=http://10.0.1.100:9000 \
+                    -Dsonar.jdbc.url=jdbc:postgresql://10.0.1.100:5432/sonar \
+                    -Dsonar.jdbc.username=$sonar_db_login \
+                    -Dsonar.jdbc.password=$sonar_db_passwd \
+                    -Dsonar.projectBaseDir=/usr/src \
+                    -Dsonar.sources=. \
+                    -Dsonar.projectKey=${JOB_NAME}-${BUILD_NUMBER} \
+                    -Dsonar.projectName=${JOB_NAME} \
+                    -Dsonar.projectVersion=${BUILD_NUMBER}
+                    sudo rm -rf ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-spa/.scannerwork
+                    echo "======== sonar results ========"
+                    echo "http://jenkins.simple-testing-capabilities.co.uk:9000/dashboard?id=${JOB_NAME}-${BUILD_NUMBER}" 
+                    echo "==============================="
+                    '''
+            }       
+		}
+        stage('[i] AWS Deployment') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                sh '''
+                cd ${WORKSPACE}/ci-cd-infra/terraform/03-cicd-fargate/
+                /usr/local/bin/terraform init
+                /usr/local/bin/terraform plan \
+                --var "app_image_backend=$registry_url/$app_backend" \
+                --var "app_port_backend=$app_port_backend" \
+                --var "app_image_frontend=$registry_url/$app_frontend" \
+                --var "app_port_frontend=$app_port_frontend" \
+                --var "app_image_db=$registry_url/$app_db" \
+                --var "app_port_db=$app_port_db"
+                /usr/local/bin/terraform apply --auto-approve \
+                --var "app_image_backend=$registry_url/$app_backend" \
+                --var "app_port_backend=$app_port_backend" \
+                --var "app_image_frontend=$registry_url/$app_frontend" \
+                --var "app_port_frontend=$app_port_frontend" \
+                --var "app_image_db=$registry_url/$app_db" \
+                --var "app_port_db=$app_port_db"
+                while [[ "$(curl --insecure -s -o /dev/null -w ''%{http_code}'' http://backend.simple-testing-capabilities.co.uk:50504/api/book/1)" != "200" ]]; do sleep 5; done
+                '''
+            }
+        }
+        stage('[i] API integration tests') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                    sh '''
+                    echo "====================== API integration test ======================"
+                    cd ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-ui-tests/APITests
+                    dotnet publish --output api-tests
+                    dotnet vstest api-tests/APITests.dll /logger:trx
+                    aws s3 mv TestResults/*.trx s3://simple-testing-capabilities-tests/api-tests/${JOB_NAME}-${BUILD_NUMBER}.trx
+                    '''
+            } 
+        }
+        stage('[i] UI automated tests') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                    sh '''
+                    echo "====================== UI test ======================"
+                    cd ${WORKSPACE}/ci-cd-app/simple-testing-capabilities-ui-tests/UITests
+                    dotnet publish --output ui-tests
+                    dotnet vstest ui-tests/UITests.dll /logger:trx
+                    aws s3 mv TestResults/*.trx s3://simple-testing-capabilities-tests/ui-tests/${JOB_NAME}-${BUILD_NUMBER}.trx
+                    '''
+            } 
+        }
+        stage('Confirmation') {
+            steps {
+                script {
+                    timeout(time: 20, unit: 'MINUTES') {
+                    input(id: "Confirmation", message: "Destroy AWS Fargate?", ok: 'Destroy')
+                    }
+                }
+            }
+        }
+        stage('[i] AWS release dynamic environment resourses') {
+        agent { node 'aws-ec2-dev' }
+            steps {
+                sh '''
+                cd ${WORKSPACE}/ci-cd-infra/terraform/03-cicd-fargate/
+                /usr/local/bin/terraform init
+                /usr/local/bin/terraform plan \
+                --var "app_image_backend=$registry_url/$app_backend" \
+                --var "app_port_backend=$app_port_backend" \
+                --var "app_image_frontend=$registry_url/$app_frontend" \
+                --var "app_port_frontend=$app_port_frontend" \
+                --var "app_image_db=$registry_url/$app_db" \
+                --var "app_port_db=$app_port_db"
+                /usr/local/bin/terraform destroy --auto-approve \
+                --target aws_ecs_task_definition.task_simple_testing_capabilities_backend \
+                --target aws_ecs_task_definition.task_simple_testing_capabilities_frontend \
+                --target aws_ecs_task_definition.task_simple_testing_capabilities_db \
+                --target aws_ecs_service.service_backend \
+                --target aws_ecs_service.service_forntend \
+                --target aws_ecs_service.service_db \
+                --target aws_alb_target_group.backend_target_group \
+                --target aws_alb_listener.listener_backend \
+                --target aws_alb_target_group.frontend_target_group \
+                --target aws_alb_listener.frontend_db \
+                --target aws_alb_target_group.db_target_group \
+                --target aws_alb_listener.listener_db \
+                --var "app_image_backend=$registry_url/$app_backend" \
+                --var "app_port_backend=$app_port_backend" \
+                --var "app_image_frontend=$registry_url/$app_frontend" \
+                --var "app_port_frontend=$app_port_frontend" \
+                --var "app_image_db=$registry_url/$app_db" \
+                --var "app_port_db=$app_port_db"
+                '''
+            }
+        }
+    }
+    post {
+        success {
+            sh '''
+            aws s3 cp /var/jenkins_home/jobs/${JOB_NAME}/builds/${BUILD_NUMBER}/log s3://simple-testing-capabilities-tests/logs/${JOB_NAME}-${BUILD_NUMBER}-success
+            '''
+        }
+        failure {
+            sh '''
+            aws s3 cp /var/jenkins_home/jobs/${JOB_NAME}/builds/${BUILD_NUMBER}/log s3://simple-testing-capabilities-tests/logs/${JOB_NAME}-${BUILD_NUMBER}-failure
+            '''
+        }
+    }
+}

@@ -1,0 +1,86 @@
+/*
+ *  SEMS Pipeline Framework Infrastructure (SPiFI)
+ *
+ * Copyright 2020 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+ * Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains
+ * certain rights in this software.
+ *
+ * LICENSE (3-Clause BSD)
+ * ----------------------
+ * Copyright 2020 National Technology & Engineering Solutions of Sandia, LLC (NTESS).
+ * Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains
+ * certain rights in this software.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Contact
+ * -------
+ * William C. McLendon III (wcmclen@sandia.gov)
+ */
+
+/**
+ * Launch a set of jobs in parallel using SPiFI
+ *
+ */
+node("master || RHEL6 || RHEL7")
+{
+    // Load the SPiFI library
+    @Library('SPiFI') _
+
+
+    // Pipeline Stage
+    stage("Stage 1")
+    {
+        // Instantiate a JobLauncher
+        def spifi_jl = new gov.sandia.sems.spifi.JobLauncher(env: this)
+
+        // Add some jobs to run
+        spifi_jl.appendJob(label: "Job-1", job_name: "JENKINS_JOB_TO_RUN")
+        spifi_jl.appendJob(label: "Job-2", job_name: "ANOTHER_JENKINS_JOB")
+        spifi_jl.appendJob(label: "Job-3", job_name: "YET_ANOTHER_JENKINS_JOB")
+
+        // Pretty Print the list of jobs to console output
+        spifi_jl.printJobList()
+
+        // Launch the jobs
+        spifi_jl.launchInParallel()
+
+        // Get the summary stats of the run
+        def summary = spifi_jl.getLastResultSummary()
+
+        // Check the summary
+        // If all jobs didn't pass, then exit the pipeline with a FAILURE status.
+        if(summary.NUMJOBS != summary.NUMSUCCESS)
+        {
+            // Set the build result, allowable values are: SUCCESS, FAILURE, UNSTABLE, ABORTED, NOT_BUILT
+            currentBuild.result = 'FAILURE'
+            return
+        }
+    }  // end Stage 1
+
+
+}  // end node()
+

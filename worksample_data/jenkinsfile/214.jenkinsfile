@@ -1,0 +1,16 @@
+@Library("pipe-shared-libs@dev") _
+import com.acceleratedskillup.*;
+
+pipeline{
+    agent any
+    stages{
+        stage("A"){
+            steps{
+                script {
+                   def calc = new Calculator()
+                   println calc.add(31,15)
+                }
+            }
+        }
+    }
+}

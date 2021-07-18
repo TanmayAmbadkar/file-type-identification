@@ -1,0 +1,301 @@
+pipeline {
+    agent {
+        label "podman"
+    }
+    
+    environment {
+        WORKING_DIR = "kogito-cloud-operator"
+        GO_ENV_FILE = "${WORKSPACE}/.go-env"
+    }
+    
+    stages {
+        stage("Init"){
+            steps{
+                script {
+                    sh """
+                        podman login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+                    """
+
+                    currentBuild.displayName = "${REPOSITORY_BRANCH}"
+                }
+            }
+        }
+        stage("Checkout code"){
+            steps {
+                deleteDir()
+                sh "rm -rf ${WORKING_DIR} && mkdir -p ${WORKING_DIR}"
+                dir("${WORKING_DIR}") {
+                    git url: "${REPOSITORY_URL}", branch: "${REPOSITORY_BRANCH}"
+                    sh "ls -al"
+                }
+            }
+        }
+        
+        stage("Setup node") {
+            steps {
+                script {
+                    installGo()
+                    installOperatorSDK()
+                    installOpenshiftClient()
+                    installGraalVMWithNative()
+                    installMaven()
+                    
+                    sh """
+                        . ${GO_ENV_FILE}
+                        
+                        go version
+                        hg version
+                        python2 --version
+                        operator-sdk version
+                        oc version
+
+                        echo \$JAVA_HOME
+                        echo \$GRAALVM_HOME
+                        
+                        java -version
+                        native-image --version
+                        mvn --version
+                    """
+                }
+            }
+        }
+
+        stage("Build operator image") {
+            when {
+                expression { return "$OPERATOR_IMAGE_NAME".isEmpty()}
+            }
+            steps {
+                dir("${WORKING_DIR}") {
+                    sh """
+                        . ${GO_ENV_FILE}
+                        make image_builder=podman
+                    """
+                }
+            }
+        }
+
+        stage("Build CLI"){
+            steps {
+                dir("${WORKING_DIR}") {
+                    sh """
+                        . ${GO_ENV_FILE}
+                        make build-cli
+                    """
+                }
+            }
+        }
+
+//        stage("Run smoke tests"){
+//            steps {
+//                dir("${WORKING_DIR}") {
+//                    sh """
+//                        # Log into OpenShift so kubeconfig file is created
+//                        oc login \${OPENSHIFT_API_URL} -u \${OPENSHIFT_USER} -p \${OPENSHIFT_PASSWORD} --insecure-skip-tls-verify
+//                        podman login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+//                    """
+//
+//                    sh """
+//                        . ${GO_ENV_FILE}
+//
+//                        BUILD=`echo \$RANDOM`
+//                        export IMAGE_NAME=\${IMAGE_REGISTRY}/\${IMAGE_GROUP}/kogito-cloud-operator
+//                        echo 'Image to use: \${IMAGE_NAME}:\${BUILD}'
+//
+//                        BUILT_IMAGE=`cat deploy/operator.yaml | grep image: | awk -F':' '{print \$2\":\"\$3}' | tr -d ' '`
+//                        echo 'BUILT_IMAGE = \${BUILT_IMAGE}'
+//
+//                        podman tag \${BUILT_IMAGE} \${IMAGE_NAME}:\${BUILD}
+//                        podman push \${IMAGE_NAME}:\${BUILD}
+//
+//                        make run-smoke-tests ci="${NAMESPACE_PREFIX}-smoke" concurrent=${CONCURRENT_TESTS} tags="${TEST_TAGS}" operator_image=\${IMAGE_NAME} operator_tag=\${BUILD} maven_mirror=\${MAVEN_MIRROR_URL} build_image_version=\${BUILD_IMAGE_VERSION} services_image_version=\${SERVICES_IMAGE_VERSION} examples_uri=${EXAMPLES_URI} examples_ref=${EXAMPLES_REF}
+//                    """
+//                }
+//            }
+//            post {
+//                always {
+//                    dir("${WORKING_DIR}") {
+//                        archiveArtifacts artifacts: 'test/logs/smoke/**/*.log', allowEmptyArchive: true
+//                        junit testResults: 'test/logs/smoke/junit.xml', allowEmptyResults: true
+//                    }
+//                }
+//            }
+//        }
+        
+        stage("Run BDD tests"){
+            steps {
+                dir("${WORKING_DIR}") {
+                    sh """
+                        # Log into OpenShift so kubeconfig file is created
+                        oc login \${OPENSHIFT_API_URL} -u \${OPENSHIFT_USER} -p \${OPENSHIFT_PASSWORD} --insecure-skip-tls-verify
+                        podman login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+                    """
+                    
+                    sh """
+                        . ${GO_ENV_FILE}
+                        
+                        if [[ -z "\${OPERATOR_IMAGE_NAME}" ]]; then
+                            OPERATOR_IMAGE_TAG=`echo \$RANDOM`
+                            export OPERATOR_IMAGE_NAME=\${IMAGE_REGISTRY}/\${IMAGE_GROUP}/kogito-cloud-operator
+                            echo 'Image to use: \${OPERATOR_IMAGE_NAME}:\${OPERATOR_IMAGE_TAG}'
+                        
+                            BUILT_IMAGE=`cat deploy/operator.yaml | grep image: | awk -F':' '{print \$2\":\"\$3}' | tr -d ' '`
+                            echo 'BUILT_IMAGE = \${BUILT_IMAGE}'
+                        
+                            podman tag \${BUILT_IMAGE} \${OPERATOR_IMAGE_NAME}:\${OPERATOR_IMAGE_TAG}
+                            podman push \${OPERATOR_IMAGE_NAME}:\${OPERATOR_IMAGE_TAG}
+                        fi
+                        make run-tests \\
+                             ci=${NAMESPACE_PREFIX} \\
+                             concurrent=${CONCURRENT_TESTS} \\
+                             tags="${TEST_TAGS}" \\
+                             operator_image=\${OPERATOR_IMAGE_NAME} \\
+                             operator_tag=\${OPERATOR_IMAGE_TAG} \\
+                             maven_mirror=\${MAVEN_MIRROR_URL} \\
+                             build_image_version=\${BUILD_IMAGE_VERSION} \\
+                             services_image_version=\${SERVICES_IMAGE_VERSION} \\
+                             examples_uri=${EXAMPLES_URI} \\
+                             examples_ref=${EXAMPLES_REF} \\
+                             keep_namespace=${KEEP_NAMESPACE} \\
+                             timeout=${TIMEOUT} \\
+                             runtime_application_image_registry=${IMAGE_REGISTRY} \\
+                             runtime_application_image_namespace=${IMAGE_GROUP} \\
+                             runtime_application_image_version=latest \\
+                             container_engine=podman
+                    """   
+                }
+            }
+            post {
+                always {
+                    dir("${WORKING_DIR}") {
+                        archiveArtifacts artifacts: 'test/logs/full/**/*.log, test/logs/full/**/*.csv', allowEmptyArchive: true
+                        junit testResults: 'test/logs/full/junit.xml', allowEmptyResults: true
+                    }
+                }
+            }
+        }
+    }
+     post {
+        unstable {
+            script {
+                sendMail()
+            }
+        }
+        failure {
+            script {
+                sendMail()
+            }
+        }
+        changed {
+            script {
+                sendMail()
+            }
+        }
+        always {
+            deleteDir()
+        }
+    }
+}
+
+void sendMail(){
+    mail to: "mmacik@redhat.com", subject: "${currentBuild.currentResult} for job ${JOB_NAME}", body: "${BUILD_URL}"
+}
+
+void installGo(){
+    // Download and install Go binary
+    sh """
+        rm -rf go/
+        GO_VERSION=1.13.6
+        GO_PACKAGE="go\${GO_VERSION}.linux-amd64.tar.gz"
+        curl -LO https://dl.google.com/go/\${GO_PACKAGE} -o ${WORKSPACE}/\${GO_PACKAGE}
+        tar xzf ${WORKSPACE}/\${GO_PACKAGE}
+        chmod u+x ${WORKSPACE}/go/bin/*
+    """
+
+    // Set go env variables into env file
+    sh '''
+        rm -rf ${GO_ENV_FILE}
+
+        echo \"export GOROOT=${WORKSPACE}/go\" >> ${GO_ENV_FILE}
+
+        mkdir -p ${WORKSPACE}/go-${GO_VERSION}
+        mkdir -p ${WORKSPACE}/go-${GO_VERSION}/.cache
+        
+        echo \"export GOCACHE=${WORKSPACE}/go-${GO_VERSION}/.cache\" >> ${GO_ENV_FILE}
+        echo \"export GOPATH=${WORKSPACE}/go-${GO_VERSION}\" >> ${GO_ENV_FILE}
+        
+        . ${GO_ENV_FILE}
+        
+        echo 'export PATH=\${PATH}:\${GOROOT}/bin' >> ${GO_ENV_FILE}
+        echo 'export PATH=\${PATH}:\${GOPATH}/bin' >> ${GO_ENV_FILE}
+        
+        cat ${GO_ENV_FILE}
+    '''
+
+    // Install Go dependencies
+    sh """
+        . ${GO_ENV_FILE}
+        export GO111MODULE=on
+        go get github.com/gobuffalo/packr/v2/packr2
+        go get -u golang.org/x/lint/golint
+    """
+}
+
+void installOperatorSDK(){
+    sh """
+        # Install mercurial, needed by operator-sdk
+        sudo yum install -y python2
+        sudo yum install -y --skip-broken '*mercurial*'
+        
+        # Install operator-sdk 0.15.1
+        rm -rf \$HOME/bin/operator-sdk
+        RELEASE_VERSION=v0.15.1
+        curl -LO https://github.com/operator-framework/operator-sdk/releases/download/\${RELEASE_VERSION}/operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu
+        #curl -LO https://github.com/operator-framework/operator-sdk/releases/download/\${RELEASE_VERSION}/operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu.asc
+        #gpg --verify operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu.asc
+        chmod +x operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu && mkdir -p \$HOME/bin/ && cp operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu \$HOME/bin/operator-sdk && rm operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu
+    """
+}
+
+void installOpenshiftClient(){
+    sh """
+        # Download and unzip latest OC client
+        URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/"
+        PACKAGE_URL=`curl \$URL --silent | grep "openshift-client-linux.tar.gz" | sed -n 's/.*href="\\([^"]*\\).*/\\1/p'`
+        PACKAGE_URL="\${URL}\${PACKAGE_URL}"
+        PACKAGE_NAME=`basename \${PACKAGE_URL}`
+        wget \${PACKAGE_URL}
+        tar xzf ./\${PACKAGE_NAME}
+        mv oc \${OSE_CLIENT_DIR}
+    """
+}
+
+void installGraalVMWithNative(){
+    echo "installGraalVMWithNative"
+    sh """
+        GRAALVM_RELEASE_VERSION=20.1.0
+        rm -rf ${WORKSPACE}/graalvm*
+        curl -LO https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-\${GRAALVM_RELEASE_VERSION}/graalvm-ce-java11-linux-amd64-\${GRAALVM_RELEASE_VERSION}.tar.gz
+        tar xzf graalvm-ce-java11-linux-amd64-\${GRAALVM_RELEASE_VERSION}.tar.gz
+        
+        echo \"export GRAALVM_HOME=${WORKSPACE}/graalvm-ce-java11-\${GRAALVM_RELEASE_VERSION}\" >> ${GO_ENV_FILE}
+        echo \"export JAVA_HOME=${WORKSPACE}/graalvm-ce-java11-\${GRAALVM_RELEASE_VERSION}\" >> ${GO_ENV_FILE}
+        . ${GO_ENV_FILE}
+        echo 'export PATH=\${GRAALVM_HOME}/bin:\${PATH}' >> ${GO_ENV_FILE}
+        . ${GO_ENV_FILE}
+
+        gu install native-image
+    """
+}
+
+void installMaven(){
+    sh """       
+        MAVEN_RELEASE_VERSION=3.6.3
+        rm -rf ${WORKSPACE}/apache-maven-*
+        curl -LO https://mirrors.ocf.berkeley.edu/apache/maven/maven-3/\${MAVEN_RELEASE_VERSION}/binaries/apache-maven-\${MAVEN_RELEASE_VERSION}-bin.tar.gz
+        tar xzf apache-maven-\${MAVEN_RELEASE_VERSION}-bin.tar.gz
+        
+        echo \"export MVN_HOME=${WORKSPACE}/apache-maven-\${MAVEN_RELEASE_VERSION}\" >> ${GO_ENV_FILE}
+        . ${GO_ENV_FILE}
+        echo 'export PATH=\${PATH}:\${MVN_HOME}/bin' >> ${GO_ENV_FILE}
+    """
+}

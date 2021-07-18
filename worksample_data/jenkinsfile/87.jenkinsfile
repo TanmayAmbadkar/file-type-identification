@@ -1,0 +1,47 @@
+pipeline{
+    agent any 
+    
+    stages{
+     
+        stage("Checkout the Source code"){
+            steps {
+                    git '${GIT_URL}'
+                
+            }
+        }
+    
+        stage("Building source code using maven."){
+            steps{
+                script{
+                    sh "mvn clean install"
+                }
+            }
+        }
+        
+        
+        stage('Approval required for deployment') {
+            input {
+                message "Should we continue to Deploy on SIT/UAT environment,"
+                ok "Yes, we should."
+                parameters {
+                    string(name: 'PERSON', defaultValue: 'Approver', description: 'Who should I say hello to?')
+                }
+            }
+           
+            steps {
+                echo "Hello, ${PERSON}, nice to meet you."
+            }
+        }
+         
+
+        
+        stage("Deployment into SIT Server."){
+            steps{
+                script{
+                    
+                    sh 'cp /var/lib/jenkins/workspace/${ProjectName}/Build/target/*.jar /tmp/'
+                }
+            }
+        }
+    }
+}

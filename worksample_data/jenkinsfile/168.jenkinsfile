@@ -1,0 +1,18 @@
+#!groovy
+
+String buildShell = "${env.buildShell}"
+
+pipeline{
+    agent any
+
+    stages{
+        stage("build"){
+            steps{
+            script{
+                mavenHome = tool 'M2_HOME'
+ 				sh "${mavenHome}/bin/mvn ${buildShell}"
+                }
+            }
+        }
+    }
+}

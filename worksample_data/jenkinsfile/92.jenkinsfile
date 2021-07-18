@@ -1,0 +1,19 @@
+pipeline {
+    agent {
+        node {
+            label 'ansible'
+        }
+    }
+    stages {
+        stage('Prepare Jenkinses') {
+            steps {
+              ansiColor('xterm') {
+                ansiblePlaybook( 
+                  playbook: 'jenkinses.yml',
+                  inventory: 'ansible/hosts', 
+                  colorized: true) 
+              }
+            }
+        }
+    }
+}

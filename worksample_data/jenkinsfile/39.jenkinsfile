@@ -1,0 +1,123 @@
+pipeline{
+    agent any
+    environment{
+        def BUILD_USER=sh(returnStdout:true,script: "curl ${JENKINS_URL}/job/${JOB_NAME}/${BUILD_ID}/api/xml|awk '{match(\$0,\"<userId>\")}{printf substr(\$0,RSTART+RLENGTH)}' | awk -F \"<\" '{printf \$1}'")
+        def timestamp=sh(returnStdout:true,script: "curl ${JENKINS_URL}/job/${JOB_NAME}/${BUILD_ID}/api/xml|awk '{match(\$0,\"<timestamp>\")}{printf substr(\$0,RSTART+RLENGTH)}' | awk -F \"<\" '{printf substr(\$1,1,10)}'")
+        def BUILD_TIME=sh(returnStdout:true,script:"echo `date '+%Y-%m-%d %T %Z' -d @$timestamp `")
+        def DINGTALK_TOKEN='2e7a689bd8794a2149d297d7f72a3f68f6023100acd4626cac0f35553730862c'  
+        def GIT_URL='https://github.com/hu0514/provider-comn.git'
+        def BRANCH='master'
+        def GIT_NAME=sh(returnStdout:true,script:"echo ${GIT_URL}|awk -F'[:/.]' '{printf \$(NF-1)}'")
+        def GIT_CRED_ID='03be43e2-f021-4089-904c-41aa427ea279'
+        def ASB_CRED_ID='93305ed6-fd67-4692-ad14-ff62d5365599'
+        def AtUser='18817810841'
+    }
+    post{
+        always{
+            sh """
+            curl 'https://oapi.dingtalk.com/robot/send?access_token=${DINGTALK_TOKEN}' \
+                -H 'Content-Type: application/json' \
+                -d '
+                {"msgtype": "markdown",
+                    "markdown": {"title":"${JOB_NAME}-构建${currentBuild.currentResult}",
+                        "text":"### ${JOB_NAME}-构建${currentBuild.currentResult} 
+##### 执行任务: 测试+部署
+&nbsp;&nbsp;
+##### 构建时间: ${BUILD_TIME} 
+&nbsp;&nbsp;
+##### 项目名称: ${JOB_NAME}
+&nbsp;&nbsp;
+##### 构建编号: ${BUILD_DISPLAY_NAME}
+&nbsp;&nbsp;
+##### 版本作者: ${BUILD_USER} 
+&nbsp;&nbsp;
+##### 版本状态: ${currentBuild.currentResult}
+[点击查看](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_ID})"
+                    }
+                }
+                '
+            """
+        }
+    }
+    stages{
+        stage('get code'){
+            steps{
+                dir(path:"./${GIT_NAME}"){
+                    git (
+                        credentialsId: GIT_CRED_ID,
+                        branch: BRANCH,
+                        url: GIT_URL,
+                        changelog: true
+                    )
+                }
+
+            }
+        }
+        stage('test'){
+            agent{
+                docker{
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps{
+                dir(path:"../${JOB_NAME}/${GIT_NAME}"){
+                    sh '''
+                    mvn -v
+                    mvn test
+                    '''                    
+                }
+            }
+        }
+        stage('deploy'){
+            agent {
+                docker {
+                    image 'maven:3-alpine'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
+            steps{
+                sh """
+                curl 'https://oapi.dingtalk.com/robot/send?access_token=${DINGTALK_TOKEN}' \
+                    -H 'Content-Type: application/json' \
+                    -d '
+                    {"msgtype": "markdown",
+                        "markdown": {"title":"请登录jnekins确认是否发布${JOB_NAME}",
+                            "text":"### ${JOB_NAME}-构建${currentBuild.currentResult} 
+##### 执行任务: 测试+构建+部署 
+&nbsp;&nbsp;
+##### 构建时间: ${BUILD_TIME} 
+&nbsp;&nbsp;
+##### 项目名称: ${JOB_NAME} 
+&nbsp;&nbsp;
+##### 构建编号: ${BUILD_DISPLAY_NAME} 
+&nbsp;&nbsp;
+##### 版本作者: ${BUILD_USER} 
+&nbsp;&nbsp;
+##### 版本状态: ${currentBuild.currentResult} 
+&nbsp;&nbsp;
+##### **@${AtUser}**
+### 请登录jnekins确认是否发布
+[点击查看](${JENKINS_URL}blue/organizations/jenkins/${JOB_NAME}/detail/${JOB_NAME}/${BUILD_ID})"
+                        },
+                        "at":{
+                            "atMobiles":[
+                                ${AtUser}
+                            ],
+                            "isAtAll":false
+                        }
+                    }
+                    '
+                """  
+                input(
+                    id: '立即发布',
+                    message: '是否立即发布'+JOB_NAME+'?',
+                    ok: '立即发布.',
+                )
+                dir(path:"../${JOB_NAME}/${GIT_NAME}"){
+                    sh 'mvn install'
+                }
+            }
+        }
+    }
+}

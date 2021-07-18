@@ -1,0 +1,19 @@
+pipeline {
+    agent { docker { image 'composer' } }
+    environment { HOME = '.' }
+    stages {
+        stage('build') {
+            steps {
+                git 'https://github.com/sergsoares/payment-api'
+                sh 'composer install'
+                sh 'cp .env.example .env'
+                sh 'php artisan key:generate'
+            }
+        }
+        stage('test') {
+            steps {
+                sh 'vendor/bin/phpunit'    
+            }
+        }
+    }
+}

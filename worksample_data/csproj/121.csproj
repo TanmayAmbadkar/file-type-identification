@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageVersion>0.8.1</PackageVersion>
+    <Authors>Thomas Hansen</Authors>
+    <PackageLicenseUrl>https://github.com/polterguy/lizzie/blob/master/LICENSE</PackageLicenseUrl>
+    <Owners>Thomas Hansen</Owners>
+    <PackageProjectUrl>https://github.com/polterguy/lizzie</PackageProjectUrl>
+    <Summary>Lizzie, a (tiny) scripting language for .Net</Summary>
+    <PackageTags>delegates, scripting, symbolic delegates</PackageTags>
+    <Title>lizzie</Title>
+    <Description>A dynamic script language for the CLR based upon Symbolic Delegates</Description>
+    <PackageId>lizzie</PackageId>
+    <PackOnBuild>true</PackOnBuild>
+    <ReleaseVersion>0.8.1</ReleaseVersion>
+    <SynchReleaseVersion>false</SynchReleaseVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DocumentationFile>bin\Debug\netstandard2.0\lizzie.xml</DocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType></DebugType>
+    <DocumentationFile>bin\Release\netstandard2.0\lizzie.xml</DocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="exceptions\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" version="4.5.0" Version="4.5.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+  </ItemGroup>
+</Project>

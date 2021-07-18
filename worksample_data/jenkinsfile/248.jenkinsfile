@@ -1,0 +1,190 @@
+pipeline {
+    agent {
+        label "podman"
+    }
+    
+    environment {
+        WORKING_DIR = "kogito-cloud-operator"
+        GO_ENV_FILE = "${WORKSPACE}/.go-env"
+    }
+    
+    stages {
+        stage("Init"){
+            steps{
+                script {
+                    sh """
+                        podman login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+                    """
+
+                    currentBuild.displayName = "${REPOSITORY_BRANCH}"
+                }
+            }
+        }
+        stage("Checkout code"){
+            steps {
+                deleteDir()
+                sh "rm -rf ${WORKING_DIR} && mkdir -p ${WORKING_DIR}"
+                dir("${WORKING_DIR}") {
+                    git url: "${REPOSITORY_URL}", branch: "${REPOSITORY_BRANCH}"
+                    sh "ls -al"
+                }
+            }
+        }
+        
+        stage("Setup node") {
+            steps {
+                script {
+                    installGo()
+                    installOperatorSDK()
+                    installOpenshiftClient()
+                    
+                    sh """
+                        . ${GO_ENV_FILE}
+                        
+                        go version
+                        hg version
+                        python2 --version
+                        operator-sdk version
+                        oc version
+                    """
+                }
+            }
+        }
+        
+        stage("Build operator image"){
+            steps {
+                dir("${WORKING_DIR}") {
+                    sh """
+                        . ${GO_ENV_FILE}
+                        make image_builder=podman
+                    """
+                }
+            }
+        }
+        
+        stage("Build CLI"){
+            steps {
+                dir("${WORKING_DIR}") {
+                    sh """
+                        . ${GO_ENV_FILE}
+                        make build-cli
+                    """
+                }
+            }
+        }
+
+        stage("Deploy operator image"){
+            steps {
+                dir("${WORKING_DIR}") {                    
+                    sh """                        
+                        podman login -u="\${REGISTRY_USER}" -p="\${REGISTRY_PASSWORD}" \${IMAGE_REGISTRY}
+
+                        IMAGE_NAME=\${IMAGE_REGISTRY}/\${IMAGE_GROUP}/kogito-cloud-operator
+                        BUILT_IMAGE=`cat deploy/operator.yaml | grep image: | awk -F':' '{print \$2\":\"\$3}' | tr -d ' '`
+                        FINAL_IMAGE="\${IMAGE_NAME}:\${REPOSITORY_BRANCH}"
+
+                        echo "Built Image: \${BUILT_IMAGE}"
+                        echo "Image to use: \${FINAL_IMAGE}"
+                        
+                        echo "Tag and push to image \${FINAL_IMAGE}"
+                        podman tag \${BUILT_IMAGE} \${FINAL_IMAGE}
+                        podman push \${FINAL_IMAGE}
+                    """
+                }
+            }
+        }
+    }
+     post {
+        unstable {
+            script {
+                sendMail()
+            }
+        }
+        failure {
+            script {
+                sendMail()
+            }
+        }
+        changed {
+            script {
+                sendMail()
+            }
+        }
+        always {
+            deleteDir()
+        }
+    }
+}
+
+void sendMail(){
+    mail to: "mmacik@redhat.com", subject: "${currentBuild.currentResult} for job ${JOB_NAME}", body: "${BUILD_URL}"
+}
+
+void installGo(){
+    // Download and install Go binary
+    sh """
+        rm -rf go/
+        GO_VERSION=1.13.6
+        GO_PACKAGE="go\${GO_VERSION}.linux-amd64.tar.gz"
+        curl -LO https://dl.google.com/go/\${GO_PACKAGE} -o ${WORKSPACE}/\${GO_PACKAGE}
+        tar xzf ${WORKSPACE}/\${GO_PACKAGE}
+        chmod u+x ${WORKSPACE}/go/bin/*
+    """
+
+    // Set go env variables into env file
+    sh '''
+        rm -rf ${GO_ENV_FILE}
+
+        echo \"export GOROOT=${WORKSPACE}/go\" >> ${GO_ENV_FILE}
+
+        mkdir -p ${WORKSPACE}/go-${GO_VERSION}
+        mkdir -p ${WORKSPACE}/go-${GO_VERSION}/.cache
+        
+        echo \"export GOCACHE=${WORKSPACE}/go-${GO_VERSION}/.cache\" >> ${GO_ENV_FILE}
+        echo \"export GOPATH=${WORKSPACE}/go-${GO_VERSION}\" >> ${GO_ENV_FILE}
+        
+        . ${GO_ENV_FILE}
+        
+        echo 'export PATH=\${PATH}:\${GOROOT}/bin' >> ${GO_ENV_FILE}
+        echo 'export PATH=\${PATH}:\${GOPATH}/bin' >> ${GO_ENV_FILE}
+        
+        cat ${GO_ENV_FILE}
+    '''
+
+    // Install Go dependencies
+    sh """
+        . ${GO_ENV_FILE}
+        export GO111MODULE=on
+        go get github.com/gobuffalo/packr/v2/packr2
+        go get -u golang.org/x/lint/golint
+    """
+}
+
+void installOperatorSDK(){
+    sh """
+        # Install mercurial, needed by operator-sdk
+        sudo yum install -y python2
+        sudo yum install -y --skip-broken '*mercurial*'
+        
+        # Install operator-sdk 0.15.1
+        rm -rf \$HOME/bin/operator-sdk
+        RELEASE_VERSION=v0.15.1
+        curl -LO https://github.com/operator-framework/operator-sdk/releases/download/\${RELEASE_VERSION}/operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu
+        #curl -LO https://github.com/operator-framework/operator-sdk/releases/download/\${RELEASE_VERSION}/operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu.asc
+        #gpg --verify operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu.asc
+        chmod +x operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu && mkdir -p \$HOME/bin/ && cp operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu \$HOME/bin/operator-sdk && rm operator-sdk-\${RELEASE_VERSION}-x86_64-linux-gnu
+    """
+}
+
+void installOpenshiftClient(){
+    sh """
+        # Download and unzip latest OC client
+        URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/"
+        PACKAGE_URL=`curl \$URL --silent | grep "openshift-client-linux.tar.gz" | sed -n 's/.*href="\\([^"]*\\).*/\\1/p'`
+        PACKAGE_URL="\${URL}\${PACKAGE_URL}"
+        PACKAGE_NAME=`basename \${PACKAGE_URL}`
+        wget \${PACKAGE_URL}
+        tar xzf ./\${PACKAGE_NAME}
+        mv oc \${OSE_CLIENT_DIR}
+    """
+}

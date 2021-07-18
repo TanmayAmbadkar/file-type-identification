@@ -1,0 +1,50 @@
+﻿<Project>
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <RootNamespace>Microsoft.Python.Analysis.Tests</RootNamespace>
+    <AssemblyName>Microsoft.Python.Analysis.Tests</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup>
+    <!-- 
+      1701, 1702 - "You may need to supply assembly policy"
+    -->
+    <NoWarn>1701;1702$(NoWarn)</NoWarn>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <CodeAnalysisRuleSet>..\..\..\PLS.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <CodeAnalysisRuleSet>..\..\..\PLS.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <Import Project="..\..\..\..\build\NetStandard.settings" />
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <ItemGroup>
+    <None Remove="app.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
+    <PackageReference Include="Microsoft.Win32.Registry" Version="4.5.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="2.0.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="2.0.0" />
+    <PackageReference Include="MicroBuild.Core" Version="0.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NSubstitute" Version="4.2.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\Impl\Microsoft.Python.Core.csproj" />
+    <ProjectReference Include="..\..\..\Core\Test\Microsoft.Python.Core.Tests.csproj" />
+    <ProjectReference Include="..\..\..\Parsing\Impl\Microsoft.Python.Parsing.csproj" />
+    <ProjectReference Include="..\..\..\Parsing\Test\Microsoft.Python.Parsing.Tests.csproj" />
+    <ProjectReference Include="..\..\..\UnitTests\Core\Impl\UnitTests.Core.csproj" />
+    <ProjectReference Include="..\..\Core\Impl\Microsoft.Python.Analysis.Core.csproj" />
+    <ProjectReference Include="..\Impl\Microsoft.Python.Analysis.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="..\..\..\..\build\NetStandard.targets" />
+</Project>

@@ -1,0 +1,26 @@
+node {
+    stage("Build") {
+        def mavenImage = docker.image("maven:3.6.3-openjdk-8-slim")
+        mavenImage.inside("-e SOME_VAR=DEV") {
+            sh '''
+            mvn -v
+            echo $SOME_VAR
+            '''
+        }
+    }
+}
+
+// OR
+
+node {
+    stage("Build") {
+        def mavenImage = docker.image("maven:3.6.3-openjdk-8-slim")
+        mavenImage.inside("-e SOME_VAR=DEV",{
+            sh '''
+            mvn -v
+            echo $SOME_VAR
+            '''
+        })
+    }
+}
+

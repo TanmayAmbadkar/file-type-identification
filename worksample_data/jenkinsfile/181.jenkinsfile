@@ -1,0 +1,75 @@
+/* 说明：在新建项目时，Jenkins需要新增几项参数-字符参数进行构建
+ * 1.Branch:默认值:Master     此次构建要拉取代码的分支版本
+ * 2.ImageTag:默认值:v1.0.0   此次构建生产的镜像版本
+ * 3.ProjectFile:默认值:src/XXX/XXX/FZ.IdentityServer.csproj 
+ * 4.MAIN_PROGRAM:默认值:XXX.dll
+ * 5.app_name: 默认值:为构建的微服务名称,必须全为小写
+ */
+
+//==========认证信息===========
+def secret_name = "registry-pull-secret"
+def git_auth = "973c9a08-4d62-4f8a-8792-7a214b7ffe66"
+def k8s_auth = "1440a42f-0ee1-4eb2-9de4-29915386d25f"
+def prod_k8s_auth = " f5f8effe-4b2b-4be5-a3f7-c6efc39c619c"
+def docker_registry_auth = "34826729-147c-43c1-8c25-09f1357b36aa"
+
+
+//==========Docker镜像仓库地址===========
+def registry = "harbor.nercoa.com"
+//==========项目变量信息===========
+def project = "winjay"
+def pdef app_name = "javademotest"
+def image_name = "${registry}/${project}/${app_name}:${ImageTag}"
+def git_address = "https://git.nercoa.com/root/DemoTest.git"
+
+
+podTemplate(label: 'jenkins-agent', cloud: 'kubernetes', containers: [
+    containerTemplate(
+        name: 'jnlp', 
+        image: "${registry}/winjay/jenkins-agent:jdk15"
+    ),
+  ],
+  volumes: [
+    hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock'),
+    hostPathVolume(mountPath: '/usr/bin/docker', hostPath: '/usr/bin/docker')
+  ],
+) 
+{
+  node("jenkins-agent"){
+      // 第一步
+      stage('拉取代码'){
+         checkout([$class: 'GitSCM', branches: [[name: '${Branch}']], userRemoteConfigs: [[credentialsId: "${git_auth}", url: "${git_address}"]]])
+      }
+      // 第二步
+      stage('代码编译'){
+          sh "mvn clean package -Dmaven.test.skip=true"
+      }
+      // 第三步
+      stage('构建镜像'){
+          withCredentials([usernamePassword(credentialsId: "${docker_registry_auth}", passwordVariable: 'password', usernameVariable: 'username')]) {
+            sh """
+              echo '
+                FROM tomcat
+                MAINTAINER WinJayX <WinJayX@Gmail.com>
+                LABEL description="This image is Jenkins Agent with JDK 15"
+                LABEL version="jenkins-agent:jdk15"
+                USER root
+                RUN rm -rf /usr/local/tomcat/webapps/*
+                ADD target/*.war /usr/local/tomcat/webapps/ROOT.war 
+              ' > Dockerfile
+              docker build -t ${image_name} .
+              docker login -u ${username} -p '${password}' ${registry}
+              docker push ${image_name}
+            """
+            }
+      }
+      // 第四步
+      stage('部署到K8S平台'){
+          sh """
+          sed -i 's#\$IMAGE_NAME#${image_name}#' deploy.yml
+          sed -i 's#\$SECRET_NAME#${secret_name}#' deploy.yml
+          """
+          kubernetesDeploy configs: 'deploy.yml', kubeconfigId: "${k8s_auth}"
+      }
+  }
+}

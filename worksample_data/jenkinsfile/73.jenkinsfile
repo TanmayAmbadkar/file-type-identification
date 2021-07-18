@@ -1,0 +1,27 @@
+#!groovy
+ // Run docker build
+ properties([disableConcurrentBuilds()])
+
+ pipeline {
+     agent { 
+         label 'master'
+         }
+     triggers { 
+         upstream (
+             upstreamProjects: 'Create_image',
+             threshold: hudson.model.Result.SUCCESS )
+     }
+     options {
+         buildDiscarder(logRotator(numToKeepStr: '1', artifactNumToKeepStr: '2'))
+         timestamps()
+     }
+     stages {
+         stage("up docker") {
+            steps {
+                echo " ============== run docker container =================="
+                    sh " docker image prune -a -f "
+                    sh " docker run -d -p 80:80 antonmrk/euroopt"
+            }
+         }
+     }
+}

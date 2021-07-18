@@ -1,0 +1,31 @@
+pipeline{
+    agent {
+        label "master"
+    }
+    options { 
+        timestamps ()
+    }
+    stages{
+        stage("A"){
+            steps{
+                checkout([$class: 'GitSCM',
+                branches:[[name: "origin/master"]],
+                userRemoteConfigs: [[
+                    url: 'https://github.com/George-Smirnoff/jenkins_dockerfile.git'
+                ]]
+                ])
+            }
+        }
+        stage("B"){
+            agent {
+                dockerfile true
+            }
+            steps {
+                sh '''
+                date
+                hostname
+                '''
+            }
+        }    
+    }
+}

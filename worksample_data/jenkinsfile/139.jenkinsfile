@@ -1,0 +1,14 @@
+pipeline{
+    agent any
+    options { 
+        timestamps ()
+        buildDiscarder(logRotator(numToKeepStr: "1"))
+    }
+    stages{
+        stage("First"){
+            steps{
+                echo "======== Hello World ========"
+            }
+        }
+    }
+}

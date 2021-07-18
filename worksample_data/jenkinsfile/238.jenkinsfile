@@ -1,0 +1,3 @@
+node {
+    echo "this is scripted pipeline"
+}

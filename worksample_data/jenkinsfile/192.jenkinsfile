@@ -1,0 +1,53 @@
+pipeline {
+	agent { label params.NODE }
+
+	stages {
+		stage('Connect') {
+			steps {
+				verify_android()
+				connect()
+			}
+		}
+		stage('Copy Tools') {
+			steps {
+				copy_tools()
+			}
+		}
+		stage('Hackbench') {
+			steps {
+				dev_shell('''
+					cd /data/myci-apc/
+					for i in \\$(seq ${ITERATIONS})
+					do
+						./battery_stats.sh hackbench_battery_\\$i.csv &
+						pid=\\$!
+						hackbench -l ${LOOPS}
+						kill -9 \\$pid
+						sleep ${DELAY}
+					done
+				''')
+
+				script {
+					int iterations = env.ITERATIONS as int
+					for (int i = 1; i <= iterations; i++)
+						dev_pull("/data/myci-apc/hackbench_battery_${i}.csv", ".")
+				}
+
+				sh './tools/plot_script.py ${NODE}_hackbench > summary.txt'
+			}
+		}
+		stage('Archive') {
+			steps {
+				archiveArtifacts artifacts: '*.csv', followSymlinks: false
+				archiveArtifacts artifacts: '*.png', followSymlinks: false
+				archiveArtifacts artifacts: 'summary.txt', followSymlinks: false
+			}
+		}
+	}
+	post {
+		always {
+			cleanWs()
+			disconnect()
+		}
+	}
+}

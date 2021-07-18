@@ -1,0 +1,25 @@
+pipeline{
+    agent {
+            label "centos"
+        }
+    options { 
+        timestamps () 
+        }
+    environment {
+        version = "1.0"
+    }
+    stages{
+        stage("A") {
+            when {
+                not {
+                    expression {
+                        version == "1.0"
+                    }
+                }
+            }
+            steps {
+                echo "The version is ${version}"
+            }
+        }
+    }
+}

@@ -1,0 +1,25 @@
+pipeline{
+    agent any
+    stages{
+        stage("A"){
+            steps{
+                echo "========executing A========"
+                //error "Execution failed"
+                script {
+                    currentBuild.result = "UNSTABLE"
+                }
+
+            }
+        }
+    }
+    post{
+        //Only run the steps in post if the current Pipeline’s or stage’s run has a different completion status from its previous run.
+        changed {
+            echo "post => changed is called"
+        }
+        //Only run the steps in post if the current Pipeline’s or stage’s run has an "unstable" status, usually caused by test failures, code violations, etc. This is typically denoted by yellow in the web UI.
+        unstable {
+            echo "post => unstable is called"
+        }
+    }
+}

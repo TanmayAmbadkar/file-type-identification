@@ -1,0 +1,62 @@
+pipeline {
+    agent {
+        node {
+            label 'master'
+        }
+    }
+
+    // 定义构建参数
+    parameters {
+        string(name: 'ENV_FILE', defaultValue: 'base-env.groovy', description: '环境变量存放文件')
+    }
+
+    environment {
+        CITY = "CD"
+    }
+    stages {
+        // 读取workspace下base-env.groovy环境配置文件
+        stage("init env") {
+            steps {
+                script {
+                    println "base-env.groovy"
+                    load "${params.ENV_FILE}"
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                echo "读取文件环境变量 ${env.JDK_V}"
+                /*sh '''
+                    java -jar /home/jenkins/code_scanner/scanner.jar ${WORKSPACE}
+                    chmod +x gradlew
+                    ./gradlew clean assemble build #sonarqube
+                    '''
+                    */
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'this is a deploy step'
+                script {
+                    // 清除历史镜像
+                    sh '''
+                        docker images | grep "postop/rplus-service-app-doctor" | awk '{print $1":"$2}' | xargs docker rmi
+                    '''
+                    // 构建镜像
+                    def customImage = docker.build("postop/rplus-service-app-doctor:${env.BUILD_NUMBER}")
+                    sh 'docker images'
+                    // 连接远程仓库
+                    docker.withRegistry('https://registry.cn-qingdao.aliyuncs.com','docker@postop') {
+                        // 推送到远程仓库
+                        customImage.push()
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "job is over"
+        }
+    }
+}

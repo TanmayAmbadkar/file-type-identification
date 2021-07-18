@@ -1,0 +1,92 @@
+#!/usr/bin/env groovy
+
+properties(
+    [
+        buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '90', numToKeepStr: '120')),
+        disableConcurrentBuilds(),
+        gitLabConnection('None'),
+        [ $class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false ],
+        parameters(
+            [
+                string(name: "DESTINATION_SERVER", defaultValue: 'software-srn.sandia.gov', description: '', trim: true),
+                string(name: "DESTINATION_PATH",   defaultValue: '/sems-data-store/dakota/testing/sshPublisherTest', description: '', trim: true)
+            ]
+        )
+    ]
+)
+
+
+timestamps()
+{
+
+if( !params.containsKey("DESTINATION_SERVER") )
+{
+    params.DESTINATION_SERVER = "software-srn.sandia.gov"
+}
+if( !params.containsKey("DESTINATION_PATH") )
+{
+    params.DESTINATION_PATH = "/sems-data-store/dakota/testing/sshPublisherTest"
+}
+
+
+node("RHEL7 || OS_RHEL7 || master")
+{
+    cleanWs()
+
+
+    stage("Generate Data")
+    {
+        // do something and create a text file output.txt
+        sh "ls -ltr > test-output.txt 2>&1"
+        sh "echo 'this is a test' > test-output.md 2>&1"
+    }  // End Stage
+
+
+    stage("Archive Artifacts")
+    {
+        // archive the file as an artifact
+        archiveArtifacts(allowEmptyArchive: true,
+                         artifacts: '*.txt, *.md',
+                         fingerprint: true)
+    }  // End Stage
+
+
+    stage("Transfer Files")
+    {
+        if(true)
+        {
+            sshPublisher(
+                alwaysPublishFromMaster: true,
+                publishers: [
+                    sshPublisherDesc(
+                        configName: params.DESTINATION_SERVER,
+                        sshRetry: [
+                            retries: 3,
+                            retryDelay: 5000
+                        ],
+                        transfers: [
+                            sshTransfer(
+                                makeEmptyDirs: false,
+                                remoteDirectory: params.DESTINATION_PATH,
+                                removePrefix: '',
+                                sourceFiles: '*.txt'
+                            ),
+                            sshTransfer(
+                                makeEmptyDirs: false,
+                                remoteDirectory: params.DESTINATION_PATH,
+                                removePrefix: '',
+                                sourceFiles: '*.md'
+                            )
+                        ],
+                        verbose: false
+                    )
+                ]
+            )
+        }  // skip stage
+    } // End stage
+
+
+
+}  // End node
+
+}  // End timestamps

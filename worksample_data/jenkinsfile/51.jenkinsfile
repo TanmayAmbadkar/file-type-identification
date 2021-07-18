@@ -1,0 +1,61 @@
+pipeline {
+    agent any
+    stages {
+        stage ("Input parameters") {
+            input {
+                message "Please, fill up all parameters below:"
+                ok "Agree"
+                submitter "admin"
+                submitterParameter "whoIsSubmitterValue"
+                parameters {
+                    string(
+                        name: "ENVIRONMENT",
+                        defaultValue: "DEV",
+                        description: "Environment to build for (Valid values: DEV, PROD, TEST)"
+                    )
+                    string(
+                        name: "VERSION",
+                        defaultValue: "latest-not-defined",
+                        description: "Version number to build for"
+                    )
+                    booleanParam(
+                        name: "TO_DEPLOY_TO_ENV",
+                        defaultValue: "false",
+                        description: "Check the box if you just want to deploy it on environment"
+                    )
+                    choice(
+                        name: "AWS_REGION",
+                        description: "us-east-1:      (N. Virginia)\nus-east-2:      (Ohio)\nus-west-1:      (N. California)\nus-west-2:      (Oregon)",
+                        choices: "us-east-1\nus-east-2\nus-west-1\nus-west-2"
+                    )
+                    text(
+                        name: "MY_TEXT",
+                        defaultValue: "TEST",
+                        description: "My text value"
+                    )
+/*                     password(
+                        name: "SECRET",
+                        defaultValue: "passwd",
+                        description: "My secret password"
+                    ) */
+                    file(
+                        name: "MY_FILE",
+                        description: "File for import"
+                    )
+                    credentials(
+                        name: "MY_CREDS",
+                        defaultValue: "aws-24",
+                        required: true,
+                        description: "WHERE to Deploy?\nWhich AWS account to use to deploy environment"
+                    )
+                }
+            }
+            steps {
+                    echo "We are building for ${ENVIRONMENT}, with version ${VERSION}, and we are deploying to environment: ${TO_DEPLOY_TO_ENV}"
+                    echo "Region: ${AWS_REGION};\nMy text: ${MY_TEXT};\nMy file: ${MY_FILE}"
+                    echo "submitter is ${whoIsSubmitterValue}"
+                    echo "selected AWS account is: ${MY_CREDS}"
+                }
+        }
+    }    
+}

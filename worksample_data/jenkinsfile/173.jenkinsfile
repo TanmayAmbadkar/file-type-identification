@@ -1,0 +1,19 @@
+properties(
+    [
+        parameters(
+            [
+                string(
+                    defaultValue: 'https://github.com/spring-projects/spring-petclinic.git', description: '', name: 'Code_Repo', trim: false
+                    )
+            ]
+        )
+    ]
+)
+
+node('master') {
+    checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: '$Code_Repo']]])
+    sh '''
+        ./mvnw package
+        cp -pr target /tmp/target
+    '''
+}

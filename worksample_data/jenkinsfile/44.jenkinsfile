@@ -1,0 +1,25 @@
+#!groovy
+//  groovy Jenkinsfile
+properties([disableConcurrentBuilds()])
+
+pipeline  {
+    agent { 
+        label 'master'
+        }
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
+        timestamps()
+    }
+    stages {
+        stage("Start python script") {
+            steps {
+                echo 'Try to run start.py ...'
+                dir('.'){   
+                    sh "pip3 install -r requirements.txt"
+                    sh "python3 start.py"
+                }
+            }
+        }
+
+    }
+}

@@ -1,0 +1,10 @@
+#!groovy
+
+node {
+    build()
+}
+
+def build() {
+    git 'https://github.com/relativitydev/admin-migration-utility.git'
+    bat "\"C:/Program Files (x86)/MSBuild/14.0/bin/MSBuild.exe\" AdminMigrationUtility.sln /p:Configuration=Debug /p:Platform=x64"
+}

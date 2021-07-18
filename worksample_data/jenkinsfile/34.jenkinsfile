@@ -1,0 +1,59 @@
+///-----------------------------SETUP-----------------------------///
+//sets the description of the job
+currentBuild.rawBuild.project.description = "Opretter en administrator, som kan have sudo rettigheder."
+
+//Applies language options to the parameter descriptions
+ppolicydescription = "Vælg hvilken password policy brugeren skal have (\"user\" anvendes til almindelige brugere og \"system\" anvendes til systembrugere, hvor password ikke har udløb)."
+generatePasswordDescription = "Skal der auto-genereres et password? Alternativt skal der indtastes et password herunder."
+sendEmailDescription = "Skal der udsendes en e-mail med password?"
+if("null" == "EN") {
+    ppolicydescription = "Choose which password policy the user should have (\"user\" is used for common users and \"system\" is used for system users whose password has not expired)."
+    generatePasswordDescription = "Should a password be generated automatically? Alternatively, a password must be entered below."
+    sendEmailDescription = "Should an email be sent with a password?"
+}
+
+//sets up parameters and properties for the job
+properties([[$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
+            "null"!="true" ? disableConcurrentBuilds() : buildDiscarder(logRotator(artifactDaysToKeepStr: '-1', artifactNumToKeepStr: '-1', daysToKeepStr: '-1', numToKeepStr: '-1')),
+            buildDiscarder(logRotator(
+                    daysToKeepStr: 100 != null ? "100" : "-1",
+                    numToKeepStr: 100 != null ? "100" : "-1")
+            ),
+            disableConcurrentBuilds(),
+            disabled(),
+            parameters([
+            //Templating
+            /**/
+                    string(defaultValue: '', description: '', name: 'Brugernavn', trim: false),
+                    string(defaultValue: '', description: '', name: 'Fornavn', trim: false),
+                    string(defaultValue: '', description: '', name: 'Efternavn', trim: false),
+                    string(defaultValue: '', description: '', name: 'Email', trim: false),
+                    booleanParam(defaultValue: true, description: generatePasswordDescription, name: 'GeneratePassword'),
+                    password(defaultValue: '', description: '', name: 'Password'),
+                    booleanParam(defaultValue: true, description: sendEmailDescription, name: 'SendEmail')
+
+            ]), [$class: 'ThrottleJobProperty', categories: [], limitOneJobWithMatchingParams: false, maxConcurrentPerNode: 0, maxConcurrentTotal: 0, paramsToUseForLimit: '', throttleEnabled: false, throttleOption: 'project']
+])
+///-----------------------------PIPELINE-----------------------------///
+pipeline {
+    agent any //agent running the job
+
+    tools{ //bind tools to be used in this job to the correct names
+        gradle 'gradle-latest'
+    }
+
+    environment{ //environment variables to be used throughout the job
+        gradle_path='C:/cygwin64/home/tklb/Team4/env-atpfy/trunk/'
+     }
+
+    stages { //Stages of the job
+        stage ("Kontrollerer parametre"){
+            steps{
+                echo "working directory"
+                sh 'pwd'
+                echo "gradle path = " + gradle_path
+                echo " skulle bare teste"
+            }
+        }
+    }
+}

@@ -1,0 +1,170 @@
+///-----------------------------SETUP-----------------------------///
+//sets the description of the job
+currentBuild.rawBuild.project.description = "Opretter en administrator, som kan have sudo rettigheder."
+
+//Applies language options to the parameter descriptions
+ppolicydescription = "Vælg hvilken password policy brugeren skal have (\"user\" anvendes til almindelige brugere og \"system\" anvendes til systembrugere, hvor password ikke har udløb)."
+generatePasswordDescription = "Skal der auto-genereres et password? Alternativt skal der indtastes et password herunder."
+sendEmailDescription = "Skal der udsendes en e-mail med password?"
+if("null" == "EN") {
+    ppolicydescription = "Choose which password policy the user should have (\"user\" is used for common users and \"system\" is used for system users whose password has not expired)."
+    generatePasswordDescription = "Should a password be generated automatically? Alternatively, a password must be entered below."
+    sendEmailDescription = "Should an email be sent with a password?"
+}
+
+//sets up parameters and properties for the job
+properties([[$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
+            "null"!="true" ? disableConcurrentBuilds() : buildDiscarder(logRotator(artifactDaysToKeepStr: '-1', artifactNumToKeepStr: '-1', daysToKeepStr: '-1', numToKeepStr: '-1')),
+            buildDiscarder(logRotator(
+                    daysToKeepStr: 100 != null ? "100" : "-1",
+                    numToKeepStr: 100 != null ? "100" : "-1")
+            ),
+            authorizationMatrix(parseList("[g_dnoc_fy_superuser]", 'hudson.model.Item.Build:')),
+
+            parameters([
+            //Templating er nødvendigt da vi ikke ved om der er et passwordparam
+            /**/
+                    string(defaultValue: '', description: '', name: 'Brugernavn', trim: false),
+                    string(defaultValue: '', description: '', name: 'Fornavn', trim: false),
+                    string(defaultValue: '', description: '', name: 'Efternavn', trim: false),
+                    string(defaultValue: '', description: '', name: 'Email', trim: false),
+                    [$class: 'ChoiceParameter', choiceType: 'PT_CHECKBOX', description: '', filterLength: 1, filterable: false, name: 'Brugerroller', randomName: 'choice-parameter-4134871779299', script: [$class: 'GroovyScript', fallbackScript: [classpath: [], sandbox: false, script: ''], script: [classpath: [], sandbox: false, script: multiChoiceString("[g_dev_appserver_ssh, g_dev_appserver_sudo, g_dev_dbserver_ssh, g_dev_dbserver_sudo, g_dev_adserver_ssh, g_dev_adserver_sudo, nc_drift_admin, nc_drift_user]")]]],
+                    choice(choices: choiceString("[user, system]"), description: ppolicydescription, name: 'PasswordPolicy'),
+                    booleanParam(defaultValue: true, description: generatePasswordDescription, name: 'GeneratePassword'),
+                    password(defaultValue: '', description: '', name: 'Password'),
+                    booleanParam(defaultValue: true, description: sendEmailDescription, name: 'SendEmail')
+
+            ]), [$class: 'ThrottleJobProperty', categories: [], limitOneJobWithMatchingParams: false, maxConcurrentPerNode: 0, maxConcurrentTotal: 0, paramsToUseForLimit: '', throttleEnabled: false, throttleOption: 'project']
+])
+///-----------------------------PIPELINE-----------------------------///
+pipeline {
+    agent any //agent running the job
+
+    tools{ //bind tools to be used in this job to the correct names
+        gradle 'gradle-latest'
+    }
+
+    environment{ //environment variables to be used throughout the job
+        gradle_path='gradle/'
+        gradleRun = "gradle -Pgroups=${Brugerroller} -Puser=${Brugernavn} -PfirstName=${Fornavn} -PlastName=${Efternavn} -Pemail=${Email} -Pgid=9999 -Pcontext=fy.*dev.atp-fyd-add01 -PsendEmail=${SendEmail} -PgeneratePassword=${GeneratePassword} -Pppolicy=${PasswordPolicy} -PdisableTunneling=false -Ppassword=${Password}"
+    }
+
+    stages { //Stages of the job
+        stage ("Opsætter parametre"){
+            steps{
+                script {
+                    if (currentBuild.number < 2) {
+                        try {
+                            sh './build.sh'
+                        }
+                        finally {
+                            echo 'This is the first build of the job, parameters are now set up. Build again to use parameters'
+                        }
+                    }
+                    else{
+                        echo 'Not first build, proceeding...'
+                    }
+                }
+                /*
+                echo "${Brugernavn}"
+                echo "${Fornavn}"
+                echo "${Efternavn}"
+                echo "${Email}"
+                echo "${Brugerroller}"
+                echo "${PasswordPolicy}"
+                echo "${GeneratePassword}"
+                echo "${Password}"
+                echo "${SendEmail}"
+                */
+            }
+        }
+        stage ("Opretter bruger") {
+            steps{
+                echo "Creating LDAP USER"
+                dir(gradle_path) {
+                    //Templating er nødvendigt da vi ikke ved om der er et maskedpassword eller et passwordparam
+                    /**/
+                    wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: [[password: 'heswawuS4abudrartraTraduTR5CeWasspefruy5SumUMasafapruswU4reN', var: 'MASTER_PASSWORD_FY_NONPROD']]]) {
+                        sh gradleRun + " -PMASTER_PASSWORD_FY_NONPROD=" + " createLdapUser"
+                    }
+                    /**/
+                }
+            }
+        }
+        stage("Sætter gruppemedlemsskaber") {
+            steps{
+                echo "SETTING LDAP MEMBERSHIP"
+                dir(gradle_path){
+                    //Templating er nødvendigt da vi ikke ved om der er et maskedpassword eller et passwordparam
+                    /**/
+                    wrap([$class: 'MaskPasswordsBuildWrapper', varPasswordPairs: [[password: 'heswawuS4abudrartraTraduTR5CeWasspefruy5SumUMasafapruswU4reN', var: 'MASTER_PASSWORD_FY_NONPROD']]]) {
+                        sh gradleRun + " -PMASTER_PASSWORD_FY_NONPROD=" + " setLdapGroupMembership"
+                    }
+                    /**/
+                }
+            }
+        }
+    }
+}
+
+///-----------------------------METHODS-----------------------------///
+//splits a list from the yaml into a string that is readable by the jenkins pipeline choice parameter.
+String choiceString(String input){
+    def inputlist = parseList(input)
+    def output = ''
+    inputlist.each{
+        output += it + '\n'
+    }
+    return output
+}
+
+//turns the list string into a groovy list of objects
+String[] parseList(String input){
+    return ((input).replaceAll(/[\[\]]+/, "")).split(', ')
+}
+
+//Turns the yaml string into a formatted string readable by the multi choice parameter
+String multiChoiceString(String input){
+    output='''return [
+
+'''
+    for(String s : parseList(input)){
+        output += '''\'''' + s + '''\',
+
+'''
+    }
+    output += ''']'''
+    return output
+}
+
+//Turns the list string in to a Java list and prefaces each entry with the given string
+//Used for certain custom plugin parameters such as authorization matrix
+java.util.List<String> parseList(String input, String preface) {
+    java.util.List<String> output = ((input).replaceAll(/[\[\]]+/, "")).split(', ')
+    for (int i = 0; i < output.size(); i++)
+        output[i] = preface + output[i]
+
+    return output
+}
+
+//Currently unused, but can be used to parse a yaml map set into a list of groovy maps. The next function parses a single yaml map into a groovy map.
+//These are currently not used because templating does it.
+//Parses yaml maps into a list of groovy maps
+/*Map[] parseMaps(String input){
+    def output = []
+    list = ((input)).split('], ')
+
+    for (String s : list) {
+        output.add(parseMap(s))
+    }
+    return output
+}
+//parses a single yaml map into a groovy map
+Map parseMap(String input){
+    def output = [:]
+    list = ((input).replaceAll(/[\[\]]+/, "")).split(', ')
+    for (String s: list){
+        output.put(s.split(':')[0],s.split(':')[1])
+    }
+    return output
+}*/

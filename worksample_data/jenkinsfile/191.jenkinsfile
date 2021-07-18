@@ -1,0 +1,21 @@
+def nameOfPerson = "Jack"
+
+def printName(name) {
+    echo "My name is $name"
+}
+
+pipeline{
+    agent any
+    options { 
+        timestamps () 
+    }
+    stages{
+        stage("A"){
+            steps{
+                script {
+                    printName(nameOfPerson)
+                }
+            }
+        }
+    }
+}

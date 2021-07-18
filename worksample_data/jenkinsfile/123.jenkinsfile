@@ -1,0 +1,44 @@
+import groovy.json.JsonSlurper
+
+def getAcrLoginServer(def acrSettingsJson) {
+  def acrSettings = new JsonSlurper().parseText(acrSettingsJson)
+  return acrSettings.loginServer
+}
+
+node('slave') {
+  stage('init') {
+    checkout scm
+  }
+  
+  stage('deploy') {
+    echo "Running ${env.BUILD_ID} on node ${env.NODE_NAME}"
+
+    withCredentials([azureServicePrincipal('Azure-Deploy')]) {
+      // login Azure
+      sh '''
+        az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET -t $AZURE_TENANT_ID
+        az account set -s $AZURE_SUBSCRIPTION_ID
+      '''
+    }
+
+    withCredentials([azureServicePrincipal('Azure-AKS')]) {
+      // Create Resource Group
+      sh 'az group create --name $RESOURCE_GROUP --location $LOCATION'
+
+      sh '''
+        aks-engine deploy --subscription-id $AZURE_SUBSCRIPTION_ID \
+            --dns-prefix $RESOURCE_GROUP \
+            --resource-group $RESOURCE_GROUP \
+            --location $LOCATION \
+            --api-model ./kubernetes.json \
+            --client-id $AZURE_CLIENT_ID \
+            --client-secret $AZURE_CLIENT_SECRET \
+            --set servicePrincipalProfile.clientId="$AZURE_CLIENT_ID" \
+            --set servicePrincipalProfile.secret="$AZURE_CLIENT_SECRET"
+        '''
+    }
+    
+    // log out
+    sh 'az logout'
+  }
+}

@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+    parameters{
+        string(name: 'PERSON', defaultValue: 'Mr Wiggles', description: "testing some tutorial text")
+    }
+    tools { 
+        gradle 'gradle-latest'
+    }
+    environment {
+        gradle_path = "gradle/"
+    }
+    stages {
+        stage ('Initialize') {
+            steps {
+                echo "Working Directory:"
+                sh 'pwd'
+            }
+        }
+        stage('Checkout') {
+            steps{
+                git 'https://github.com/nc-tklb/learnjenkins'
+            }
+        }
+        stage ('try gradle hello') {
+            steps {
+                dir(gradle_path) {
+                    
+                    sh 'gradle hello'
+                }
+            }
+        }
+        stage ('try gradle createuser') {
+            steps {
+                dir(gradle_path) {
+                    sh 'gradle -Pusername=Johnny createLdapUser'
+                }
+            }
+        }
+        stage ('parameter test'){
+            steps{
+                echo "${params.PERSON}"
+            }
+        }
+    } 
+}

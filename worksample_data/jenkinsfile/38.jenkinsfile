@@ -1,0 +1,22 @@
+/* 
+
+ */
+pipeline{
+    agent any
+    options { 
+        timestamps ()
+    }
+    triggers {
+        upstream(
+            upstreamProjects: "pipeline-truggers-upstream-job1,pipeline-truggers-upstream-job2",
+            threshold: hudson.model.Result.SUCCESS //UNSTABLE, FAILURE, NOT_BUILT, ABORTED
+        )
+    }
+    stages{
+        stage("A"){
+            steps{
+                echo "pipeline-triggers-upstream is running"
+            }
+        }
+    }
+}
