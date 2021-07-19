@@ -9,8 +9,9 @@ import tracemalloc
 
 
 app = Flask(__name__)
-df = pd.read_csv("test_df.csv")
 classifier = joblib.load("rf.joblib")
+hashing_vectorizer = joblib.load("hv.joblib")
+variance_threshold = joblib.load("vt.joblib")
 
 @app.route('/')
 def hello():
@@ -24,12 +25,10 @@ def predict():
     for i in range(len(test_file)):
         test_file[i] = test_file[i].decode("utf-8")
     file_cleaned = clean_file(test_file)
-    df.loc[0] = np.zeros(len(set(df.columns)), dtype=int)
-    for word in file_cleaned:
-        if word in df.columns:
-            df[word][0]+=1
-            
-    pred = classifier.predict(df)
+    input_data = hashing_vectorizer.transform([file_cleaned])
+    input_data = variance_threshold.transform(input_data)
+    
+    pred = classifier.predict(input_data)
     return jsonify({"file_type": pred[0]})
 
 @app.route('/predict_stats', methods=["GET"])
@@ -44,17 +43,12 @@ def predict_stats():
     
     for i in range(len(list_files)):
         list_files[i] = clean_file(list_files[i])
+    X = hashing_vectorizer.transform(list_files)
+    print(X.shape)
+    X = variance_threshold.transform(X)
     
-    i=0
-    for file_cleaned in list_files:
-        df.loc[i] = np.zeros(len(set(df.columns)), dtype=int)
 
-        for word in file_cleaned:
-            if word in df.columns:
-                df[word][i]+=1
-        i+=1
-    
-    pred = classifier.predict(df)
+    pred = classifier.predict(X)
     time_required = time.time() - start
     memory = tracemalloc.get_traced_memory()
     tracemalloc.stop()
@@ -81,7 +75,7 @@ def clean_file(file):
         line = (re.sub(r'(?m)^\<\-\-((.|\n)*)\n?', '',line.strip()))
         line = (re.sub(r'(?m)^//.*\n?', '',line.strip()))
         file_cleaned.append(line)
-    file_cleaned = re.sub('[^a-zA-Z]', ' ',''.join(file_cleaned)).lower().split()
+    file_cleaned = ' '.join(re.sub('[^a-zA-Z]', ' ',''.join(file_cleaned)).lower().split())
     return file_cleaned
     
     
