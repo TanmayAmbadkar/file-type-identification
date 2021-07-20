@@ -1,0 +1,23 @@
+{
+    {
+        'model' : SVC(),
+        'params' :{
+            'C' : [1,10], 
+            'kernel' : ['rbf']
+         }
+    },
+    {
+        'model' : RandomForestClassifier(),
+        'params' :{
+            'n_estimators' : [100,150,200],
+            'criterion' : ['entropy']
+        }
+    },
+    {
+        'model' : LogisticRegression(),
+        'params' : {
+            'multi_class' : ['auto'],
+            'C' : [1,5,10]
+        }
+    },
+}

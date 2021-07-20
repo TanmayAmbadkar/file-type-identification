@@ -9,7 +9,7 @@ import tracemalloc
 
 
 app = Flask(__name__)
-classifier = joblib.load("rf.joblib")
+classifier = joblib.load("classifier.joblib")
 hashing_vectorizer = joblib.load("hv.joblib")
 variance_threshold = joblib.load("vt.joblib")
 
