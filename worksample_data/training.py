@@ -9,7 +9,7 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
 import seaborn as sns
 import matplotlib.pyplot as plt
 import joblib
@@ -103,7 +103,7 @@ def prune_dataset(X, y):
     hashing_vectorizer = HashingVectorizer(strip_accents="ascii", stop_words="english")
     X_train = hashing_vectorizer.fit_transform(X_train)
     X_test = hashing_vectorizer.transform(X_test)
-    variance_threshold = VarianceThreshold(threshold=0.00009)
+    variance_threshold = VarianceThreshold(threshold=0.00001)
     variance_threshold.fit(X_train)
     X_train = variance_threshold.transform(X_train)
     X_test = variance_threshold.transform(X_test)
@@ -113,7 +113,7 @@ def prune_dataset(X, y):
 
 def create_rf_model(X_train, X_test, y_train, y_test):
     """Creates a random forest model."""
-    classifier = RandomForestClassifier(n_estimators=200)
+    classifier = RandomForestClassifier(n_estimators=20, criterion="entropy", random_state=100)
     classifier.fit(X_train, y_train)
     #print(classification_report(y_train, classifier.predict(X_train)))
     print(classification_report(y_test, classifier.predict(X_test)))
@@ -168,7 +168,7 @@ def main():
     print("Applying hashing_vectorizer and variance_threshold")
     X_train, X_test, y_train, y_test, hashing_vectorizer, variance_threshold = prune_dataset(X,y)
     print("Cross validation for different models")
-    cross_validation(X_train, X_test, y_train, y_test)
+    #cross_validation(X_train, X_test, y_train, y_test)
     print("Training Random Forest Classifier")
     classifier_rf = create_rf_model(X_train, X_test, y_train, y_test)
     print("Dumping model")

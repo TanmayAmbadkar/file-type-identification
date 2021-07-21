@@ -54,10 +54,10 @@ def predict_stats():
     tracemalloc.stop()
     return jsonify(
         {
-            "predictions_per_sec": 6/time_required,
-            "memory": f"{memory[1]/(6*1024)} kb",
+            "predictions_per_sec": len(list_files)/time_required,
+            "memory": f"{memory[0]/(6*1024)} kb",
             "unit": "kb",
-            "count": 6,
+            "count": len(list_files),
         }
     )
 
